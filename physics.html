@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>three.js / cannon.js example</title>
+    <meta charset="utf-8">
+    <style>
+      * {
+        margin:0;
+        padding:0
+      }
+      body {
+        overflow:hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="js/three.min.js"></script>
+    <script src="js/cannon.min.js"></script>
+    <script>
+      var world, mass, body, shape, timeStep=1/60,
+         camera, scene, renderer, geometry, material, mesh;
+      var groundBody, groundShape, plane;
+      initThree();
+      initCannon();
+      animate();
+      function initCannon() {
+          world = new CANNON.World();
+          world.gravity.set(0,-9.82,0);
+          world.broadphase = new CANNON.NaiveBroadphase();
+          world.solver.iterations = 10;
+          shape = new CANNON.Box(new CANNON.Vec3(1,1,1));
+          mass = 1;
+          body = new CANNON.Body({
+            mass: 1
+          });
+          body.position.y = 4
+          body.addShape(shape);
+          body.angularVelocity.set(10,10,10);
+          body.angularDamping = 0.5;
+          world.addBody(body);
+
+          // Create a plane
+           groundBody = new CANNON.Body({
+              mass: 0 // mass == 0 makes the body static
+          });
+          groundShape = new CANNON.Plane();
+          groundBody.position.y = 0
+          // groundShape.rotation.x = - Math.PI / 2
+          groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), - Math.PI/2);
+          groundBody.addShape(groundShape);
+          world.addBody(groundBody);
+
+      }
+      function initThree() {
+          scene = new THREE.Scene();
+          camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 100 );
+          camera.position.z = 10;
+          camera.position.y = 2;
+          camera.rotation.x = -Math.PI/10
+          scene.add( camera );
+
+
+          geometry = new THREE.BoxGeometry( 2, 2, 2 );
+          material = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } );
+          mesh = new THREE.Mesh( geometry, material );
+          scene.add( mesh );
+
+          // floor
+    			var floor = new THREE.PlaneGeometry( 50, 50, 2, 2 );
+    			// floor.rotateX( - Math.PI / 2 );
+    			// for ( var i = 0, l = floor.vertices.length; i < l; i ++ ) {
+    			// 	var vertex = floor.vertices[ i ];
+    			// 	vertex.x += Math.random() * 20 - 10;
+    			// 	// vertex.y += Math.random() * 1;
+    			// 	vertex.z += Math.random() * 20 - 10;
+    			// }
+    			for ( var i = 0, l = floor.faces.length; i < l; i ++ ) {
+    				var face = floor.faces[ i ];
+    				face.vertexColors[ 0 ] = new THREE.Color().setHSL( Math.random() * 0.3 + 0.5, 0.75, Math.random() * 0.25 + 0.75 );
+    				face.vertexColors[ 1 ] = new THREE.Color().setHSL( Math.random() * 0.3 + 0.5, 0.75, Math.random() * 0.25 + 0.75 );
+    				face.vertexColors[ 2 ] = new THREE.Color().setHSL( Math.random() * 0.3 + 0.5, 0.75, Math.random() * 0.25 + 0.75 );
+    			}
+    			var mat = new THREE.MeshBasicMaterial( { vertexColors: THREE.VertexColors } );
+    			plane = new THREE.Mesh( floor, mat );
+    			scene.add( plane );
+
+          renderer = new THREE.WebGLRenderer();
+          renderer.setSize( window.innerWidth, window.innerHeight );
+          document.body.appendChild( renderer.domElement );
+      }
+      function animate() {
+          requestAnimationFrame( animate );
+          updatePhysics();
+          render();
+      }
+      function updatePhysics() {
+          // Step the physics world
+          world.step(timeStep);
+          // Copy coordinates from Cannon.js to Three.js
+          mesh.position.copy(body.position);
+          mesh.quaternion.copy(body.quaternion);
+
+          plane.position.copy(groundBody.position);
+          plane.quaternion.copy(groundBody.quaternion);
+      }
+      function render() {
+          renderer.render( scene, camera );
+      }
+    </script>
+  </body>
+</html>
