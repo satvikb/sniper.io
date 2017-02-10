@@ -48,6 +48,7 @@
 <body>
   <script src="libraries/three.min.js"></script>
   <script src="libraries/cannon.min.js"></script>
+  <script src="libraries/Stats.js"></script>
   <script src="js/pointerlockcontrols.js"></script>
 
   <div id="blocker">
@@ -75,7 +76,10 @@ var blocker = document.getElementById( 'blocker' );
 var instructions = document.getElementById( 'instructions' );
 var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 
-var weapon;
+var dt = 1/60;
+
+var stats = new Stats();
+
 
 // document.getElementById("container").style.display = 'none';
 var container;
@@ -202,32 +206,107 @@ function init() {
     overlay = createOverlay(canvas)
   }
 
+
+  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+  document.body.appendChild( stats.dom );
+
+
   camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
   scene = new THREE.Scene();
   // scene.fog = new THREE.Fog( 0x000000, 0, 500 );
-  var ambient = new THREE.AmbientLight( 0x111111 );
+  var ambient = new THREE.AmbientLight( 0x404040, 1 );
   scene.add( ambient );
-  light = new THREE.SpotLight( 0xffffff );
-  light.position.set( 10, 30, 20 );
-  light.target.position.set( 0, 0, 0 );
-  if(true){
-    light.castShadow = true;
-    light.shadowCameraNear = 20;
-    light.shadowCameraFar = 50;//camera.far;
-    light.shadowCameraFov = 40;
-    light.shadowMapBias = 0.1;
-    light.shadowMapDarkness = 0.7;
-    light.shadowMapWidth = 2*512;
-    light.shadowMapHeight = 2*512;
-    //light.shadowCameraVisible = true;
-  }
-  scene.add( light );
+  // light = new THREE.DirectionalLight( 0xffffff, 1 );
+  // light.position.set( 10, 30, 20 );
+  // light.target.position.set( 0, 0, 0 );
+  // if(true){
+  //   light.castShadow = true;
+  //   light.shadowCameraNear = 20;
+  //   light.shadowCameraFar = 50;//camera.far;
+  //   light.shadowCameraFov = 40;
+  //   // light.shadowMapBias = 0.1;
+  //   // light.shadowMapDarkness = 0.7;
+  //   // light.shadowMapWidth = 2*512;
+  //   // light.shadowMapHeight = 2*512;
+  //   //light.shadowCameraVisible = true;
+  // }
+  // scene.add( light );
+  //
+  // var oppLight = new THREE.DirectionalLight( 0xffffff, 1 );
+  // oppLight.position.set( -10, 30, -20 );
+  // oppLight.target.position.set( 0, 0, 0 );
+  // if(true){
+  //   oppLight.castShadow = false;
+  //   oppLight.shadowCameraNear = 20;
+  //   oppLight.shadowCameraFar = 50;//camera.far;
+  //   oppLight.shadowCameraFov = 40;
+  //   // light.shadowMapBias = 0.1;
+  //   // light.shadowMapDarkness = 0.7;
+  //   // light.shadowMapWidth = 2*512;
+  //   // light.shadowMapHeight = 2*512;
+  //   //light.shadowCameraVisible = true;
+  // }
+  // scene.add( oppLight );
+
+  var hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.6 );
+  hemiLight.color.setHSL( 0.6, 1, 0.6 );
+  hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
+  hemiLight.position.set( 0, 500, 0 );
+  scene.add( hemiLight );
+
+  var dirLight = new THREE.DirectionalLight( 0xffffff, 0.8 );
+  dirLight.position.set( -235, 246, 15 );
+  // dirLight.position.multiplyScalar( 50);
+  dirLight.name = "dirlight";
+  dirLight.target.position.set(0, 0, 0)
+  // dirLight.shadowCameraVisible = true;
+
+  var d = 200;
+  dirLight.shadowCameraLeft = -d;
+  dirLight.shadowCameraRight = d;
+  dirLight.shadowCameraTop = d;
+  dirLight.shadowCameraBottom = -d;
+  scene.add( dirLight );
+
+  dirLight.castShadow = true;
+  dirLight.shadowMapWidth = dirLight.shadowMapHeight = 1024*2;
+  dirLight.shadowBias = -0.0001;
+  dirLight.shadowDarkness = 0.35;
+
+  var helper = new THREE.DirectionalLightHelper( dirLight );
+  scene.add(helper);
+
+
+
+  // var dirLight2 = new THREE.DirectionalLight( 0xffffff, 1 );
+  // dirLight2.position.set( 235, 246, 15 );
+  // // dirLight.position.multiplyScalar( 50);
+  // dirLight2.name = "dirlight2";
+  // dirLight2.target.position.set(0, 0, 0)
+  // // dirLight.shadowCameraVisible = true;
+  //
+  // dirLight2.shadowCameraLeft = -d;
+  // dirLight2.shadowCameraRight = d;
+  // dirLight2.shadowCameraTop = d;
+  // dirLight2.shadowCameraBottom = -d;
+  // scene.add( dirLight2 );
+  //
+  // // dirLight2.castShadow = true;
+  // dirLight2.shadowMapWidth = dirLight.shadowMapHeight = 1024*2;
+  // dirLight2.shadowBias = -0.0001;
+  // dirLight2.shadowDarkness = 0.35;
+  //
+  // var helper2 = new THREE.DirectionalLightHelper( dirLight2 );
+  // scene.add(helper2);
+
+
+
   controls = new PointerLockControls( camera , sphereBody );
   scene.add( controls.getObject() );
   // floor
   geometry = new THREE.PlaneGeometry( 300, 300, 50, 50 );
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
-  material = new THREE.MeshLambertMaterial( { color: 0xdddddd } );
+  material = new THREE.MeshLambertMaterial( { color: 0xffffff } );
   mesh = new THREE.Mesh( geometry, material );
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -235,6 +314,10 @@ function init() {
   renderer = new THREE.WebGLRenderer({canvas: canvas});
   renderer.shadowMapEnabled = true;
   renderer.shadowMapSoft = true;
+  // renderer.shadowCameraFar = camera.far;
+  // renderer.shadowCameraFov = 75;
+  // renderer.shadowCameraNear = 0.1;
+
   renderer.setSize( window.innerWidth, window.innerHeight );
 
   // renderer.setClearColor( scene.fog.color, 1 );
@@ -244,10 +327,11 @@ function init() {
   var halfExtents = new CANNON.Vec3(1,1,1);
   var boxShape = new CANNON.Box(halfExtents);
   var boxGeometry = new THREE.BoxGeometry(halfExtents.x*2,halfExtents.y*2,halfExtents.z*2);
+  material = new THREE.MeshLambertMaterial( { color: 0xdddddd } );
   for(var i=0; i<7; i++){
-    var x = (Math.random()-0.5)*20;
+    var x = (Math.random()-0.5)*100;
     var y = 1 + (Math.random()-0.5)*1;
-    var z = (Math.random()-0.5)*20;
+    var z = (Math.random()-0.5)*100;
     var boxBody = new CANNON.Body({ mass: 0 });
     boxBody.addShape(boxShape);
     var boxMesh = new THREE.Mesh( boxGeometry, material );
@@ -350,10 +434,11 @@ function onWindowResize() {
   renderer.setSize( window.innerWidth, window.innerHeight );
 }
 
-var dt = 1/60;
 
 function animate() {
-  requestAnimationFrame( animate );
+
+  stats.begin()
+
   if(controls.enabled){
     world.step(dt);
     // Update ball positions
@@ -371,7 +456,11 @@ function animate() {
   renderer.render( scene, camera );
   drawOverlay()
 
+  stats.end()
+
   time = Date.now();
+
+  requestAnimationFrame( animate );
 }
 
 var ballShape = new CANNON.Sphere(0.2);
