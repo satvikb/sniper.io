@@ -48,8 +48,8 @@
 <body>
   <script src="libraries/three.min.js"></script>
   <script src="libraries/cannon.min.js"></script>
-  <script src="libraries/OBJLoader.js"></script>
-  <script src="libraries/Stats.js"></script>
+  <script src="debug/Stats.js"></script>
+  <script src="debug/CannonDebugRenderer.js"></script>
   <script src="js/pointerlockcontrols.js"></script>
   <script src="js/stage.js"></script>
   <!-- <script src="libraries/require.js"></script> -->
@@ -71,6 +71,7 @@
 
 <script>
 var sphereShape, sphereBody, world, physicsMaterial, walls=[], balls=[], ballMeshes=[], boxes=[], boxMeshes=[];
+var cannonDebugRenderer;
 var camera, scene, renderer;
 var geometry, material, mesh;
 var width, height;
@@ -172,17 +173,20 @@ function initCannon(){
   // Create a sphere
   var mass = 50, radius = 1, playerHeight = 2;
   var size = new CANNON.Vec3(radius, radius, radius)
-  sphereShape = new CANNON.Sphere(radius)//Cylinder(radius, radius, playerHeight, 100);
+  sphereShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
   sphereBody = new CANNON.Body({ mass: mass });
   sphereBody.addShape(sphereShape);
-  sphereBody.position.set(0,15,0);
+  sphereBody.position.set(0,2,-10);
   sphereBody.linearDamping = 0.9;
-  // sphereBody.angularDamping = 1
+  // sphereBody.inertia.set(0, 0, 0);
+  // sphereBody.invInertia.set(0, 0, 0);
+
+  sphereBody.angularDamping = 0.5
   // sphereBody.fixedRotation = true
   sphereBody.updateMassProperties();
   world.addBody(sphereBody);
   // Create a plane
-  var groundShape = new CANNON.Plane();
+  var groundShape = new CANNON.Plane(); //inf size
   var groundBody = new CANNON.Body({ mass: 0 });
   groundBody.addShape(groundShape);
   groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
@@ -218,7 +222,7 @@ function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x00bfff)
   // scene.fog = new THREE.Fog( 0x000000, 0, 500 );
-  var ambient = new THREE.AmbientLight( 0x404040, 1 );
+  var ambient = new THREE.AmbientLight( 0x404040, 0.5 );
   scene.add( ambient );
   // light = new THREE.DirectionalLight( 0xffffff, 1 );
   // light.position.set( 10, 30, 20 );
@@ -259,11 +263,11 @@ function init() {
   scene.add( hemiLight );
 
   var dirLight = new THREE.DirectionalLight( 0xffffff, 0.8 );
-  dirLight.position.set( -235, 246, 15 );
+  dirLight.position.set( -135, 146, 50 );
   // dirLight.position.multiplyScalar( 50);
   dirLight.name = "dirlight";
   dirLight.target.position.set(0, 0, 0)
-  // dirLight.shadowCameraVisible = true;
+  dirLight.shadowCameraVisible = true;
 
   var d = 200;
   dirLight.shadowCameraLeft = -d;
@@ -274,22 +278,26 @@ function init() {
 
   dirLight.castShadow = true;
   dirLight.shadowMapWidth = dirLight.shadowMapHeight = 1024*2;
-  dirLight.shadowBias = -0.0001;
-  dirLight.shadowDarkness = 0.35;
+  dirLight.shadowBias = 0.0002;
+  dirLight.shadowDarkness = 0;
 
   var helper = new THREE.DirectionalLightHelper( dirLight );
   scene.add(helper);
 
   controls = new PointerLockControls( camera , sphereBody );
   scene.add( controls.getObject() );
+
+
   // floor
   geometry = new THREE.PlaneGeometry( 300, 300, 50, 50 );
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
   material = new THREE.MeshLambertMaterial( { color: 0xffffff } );
   mesh = new THREE.Mesh( geometry, material );
-  mesh.castShadow = true;
+  // mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add( mesh );
+
+
   renderer = new THREE.WebGLRenderer({canvas: canvas});
   renderer.shadowMapEnabled = true;
   renderer.shadowMapSoft = true;
@@ -310,43 +318,7 @@ function init() {
   // document.getElementById("threeContainer").appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
 
-
-
-
-
-
-  // Add linked boxes
-  //   var size = 0.5;
-  //   var he = new CANNON.Vec3(size,size,size*0.1);
-  //   var boxShape = new CANNON.Box(he);
-  //   var mass = 0;
-  //   var space = 0.1 * size;
-  //   var N = 5, last;
-  //   var boxGeometry = new THREE.BoxGeometry(he.x*2,he.y*2,he.z*2);
-  //   for(var i=0; i<N; i++){
-  //     var boxbody = new CANNON.Body({ mass: mass });
-  //     boxbody.addShape(boxShape);
-  //     var boxMesh = new THREE.Mesh(boxGeometry, material);
-  //     boxbody.position.set(5,(N-i)*(size*2+2*space) + size*2+space,0);
-  //     boxbody.linearDamping = 0.01;
-  //     boxbody.angularDamping = 0.01;
-  //     // boxMesh.castShadow = true;
-  //     boxMesh.receiveShadow = true;
-  //     world.addBody(boxbody);
-  //     scene.add(boxMesh);
-  //     boxes.push(boxbody);
-  //     boxMeshes.push(boxMesh);
-  //     if(i!=0){
-  //         // Connect this body to the last one
-  //         var c1 = new CANNON.PointToPointConstraint(boxbody,new CANNON.Vec3(-size,size+space,0),last,new CANNON.Vec3(-size,-size-space,0));
-  //         var c2 = new CANNON.PointToPointConstraint(boxbody,new CANNON.Vec3(size,size+space,0),last,new CANNON.Vec3(size,-size-space,0));
-  //         world.addConstraint(c1);
-  //         world.addConstraint(c2);
-  //     } else {
-  //         mass=0.3;
-  //     }
-  //     last = boxbody;
-  //   }
+  cannonDebugRenderer = new THREE.CannonDebugRenderer(scene, world);
 }
 
 function makeStage(){
@@ -442,6 +414,10 @@ function animate() {
       ballMeshes[i].position.copy(balls[i].position);
       ballMeshes[i].quaternion.copy(balls[i].quaternion);
     }
+
+    // sphereBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), 0);
+    // sphereBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,0,1), 0);
+
     // Update box positions
     // for(var i=0; i<boxes.length; i++){
     //   boxMeshes[i].position.copy(boxes[i].position);
@@ -449,6 +425,7 @@ function animate() {
     // }
   }
   controls.update( Date.now() - time );
+  cannonDebugRenderer.update()
   renderer.render( scene, camera );
   drawOverlay()
 
