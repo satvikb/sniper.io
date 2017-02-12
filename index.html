@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>cannon.js + three.js physics shooter</title>
+  <title>sniper.io</title>
   <style>
   html, body {
     width: 100%;
@@ -48,8 +48,11 @@
 <body>
   <script src="libraries/three.min.js"></script>
   <script src="libraries/cannon.min.js"></script>
+  <script src="libraries/OBJLoader.js"></script>
   <script src="libraries/Stats.js"></script>
   <script src="js/pointerlockcontrols.js"></script>
+  <script src="js/stage.js"></script>
+  <!-- <script src="libraries/require.js"></script> -->
 
   <div id="blocker">
     <div id="instructions">
@@ -213,6 +216,7 @@ function init() {
 
   camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x00bfff)
   // scene.fog = new THREE.Fog( 0x000000, 0, 500 );
   var ambient = new THREE.AmbientLight( 0x404040, 1 );
   scene.add( ambient );
@@ -276,31 +280,6 @@ function init() {
   var helper = new THREE.DirectionalLightHelper( dirLight );
   scene.add(helper);
 
-
-
-  // var dirLight2 = new THREE.DirectionalLight( 0xffffff, 1 );
-  // dirLight2.position.set( 235, 246, 15 );
-  // // dirLight.position.multiplyScalar( 50);
-  // dirLight2.name = "dirlight2";
-  // dirLight2.target.position.set(0, 0, 0)
-  // // dirLight.shadowCameraVisible = true;
-  //
-  // dirLight2.shadowCameraLeft = -d;
-  // dirLight2.shadowCameraRight = d;
-  // dirLight2.shadowCameraTop = d;
-  // dirLight2.shadowCameraBottom = -d;
-  // scene.add( dirLight2 );
-  //
-  // // dirLight2.castShadow = true;
-  // dirLight2.shadowMapWidth = dirLight.shadowMapHeight = 1024*2;
-  // dirLight2.shadowBias = -0.0001;
-  // dirLight2.shadowDarkness = 0.35;
-  //
-  // var helper2 = new THREE.DirectionalLightHelper( dirLight2 );
-  // scene.add(helper2);
-
-
-
   controls = new PointerLockControls( camera , sphereBody );
   scene.add( controls.getObject() );
   // floor
@@ -314,36 +293,28 @@ function init() {
   renderer = new THREE.WebGLRenderer({canvas: canvas});
   renderer.shadowMapEnabled = true;
   renderer.shadowMapSoft = true;
+
   // renderer.shadowCameraFar = camera.far;
   // renderer.shadowCameraFov = 75;
   // renderer.shadowCameraNear = 0.1;
 
   renderer.setSize( window.innerWidth, window.innerHeight );
+  makeStage()
+
+  var axisHelper = new THREE.AxisHelper( 5 );
+  scene.add( axisHelper );
+
+
 
   // renderer.setClearColor( scene.fog.color, 1 );
   // document.getElementById("threeContainer").appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
-  // Add boxes
-  var halfExtents = new CANNON.Vec3(1,1,1);
-  var boxShape = new CANNON.Box(halfExtents);
-  var boxGeometry = new THREE.BoxGeometry(halfExtents.x*2,halfExtents.y*2,halfExtents.z*2);
-  material = new THREE.MeshLambertMaterial( { color: 0xdddddd } );
-  for(var i=0; i<7; i++){
-    var x = (Math.random()-0.5)*100;
-    var y = 1 + (Math.random()-0.5)*1;
-    var z = (Math.random()-0.5)*100;
-    var boxBody = new CANNON.Body({ mass: 0 });
-    boxBody.addShape(boxShape);
-    var boxMesh = new THREE.Mesh( boxGeometry, material );
-    world.addBody(boxBody);
-    scene.add(boxMesh);
-    boxBody.position.set(x,y,z);
-    boxMesh.position.set(x,y,z);
-    boxMesh.castShadow = true;
-    boxMesh.receiveShadow = true;
-    boxes.push(boxBody);
-    boxMeshes.push(boxMesh);
-  }
+
+
+
+
+
+
   // Add linked boxes
   //   var size = 0.5;
   //   var he = new CANNON.Vec3(size,size,size*0.1);
@@ -376,6 +347,31 @@ function init() {
   //     }
   //     last = boxbody;
   //   }
+}
+
+function makeStage(){
+  var stage = createStage()
+  var meshes = stage[0]
+  var bodies = stage[1]
+
+  var numMeshes = meshes.length
+  var numBodies = bodies.length
+
+  // if(numMeshes == numBodies){
+    console.log("matches")
+    for(var i = 0; i < numMeshes; i++){
+      var mesh = meshes[i]
+      var body = bodies[i]
+
+      // var box = new THREE.BoxHelper( mesh, 0xffff00 );
+      // scene.add( box );
+
+      // Because the stage is static we don't add them to a array for updating
+      if(mesh) scene.add(mesh)
+      if(body) world.addBody(body)
+    }
+  // }
+  console.log("made stage")
 }
 
 
@@ -447,10 +443,10 @@ function animate() {
       ballMeshes[i].quaternion.copy(balls[i].quaternion);
     }
     // Update box positions
-    for(var i=0; i<boxes.length; i++){
-      boxMeshes[i].position.copy(boxes[i].position);
-      boxMeshes[i].quaternion.copy(boxes[i].quaternion);
-    }
+    // for(var i=0; i<boxes.length; i++){
+    //   boxMeshes[i].position.copy(boxes[i].position);
+    //   boxMeshes[i].quaternion.copy(boxes[i].quaternion);
+    // }
   }
   controls.update( Date.now() - time );
   renderer.render( scene, camera );
@@ -468,14 +464,18 @@ var ballGeometry = new THREE.SphereGeometry(ballShape.radius, 32, 32);
 var shootDirection = new THREE.Vector3();
 var shootVelo = 15;
 var projector = new THREE.Projector();
+
+// TODO: remove and replace with shooting detection of other players
+
 function getShootDir(targetVec){
   var vector = targetVec;
   targetVec.set(0,0,1);
-  // vector.unprojectVector(camera, projector)
-  projector.unprojectVector(vector, camera);
+  vector.unproject(camera);
+  // projector.unprojectVector(vector, camera);
   var ray = new THREE.Ray(sphereBody.position, vector.sub(sphereBody.position).normalize() );
   targetVec.copy(ray.direction);
 }
+
 window.addEventListener("click",function(e){
   if(controls.enabled==true){
     var x = sphereBody.position.x;
