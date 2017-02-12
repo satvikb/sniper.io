@@ -175,6 +175,13 @@
         velocity.x += inputVelocity.x;
         velocity.z += inputVelocity.z;
 
+        // cannonBody.inertia.set(0, 0, 0);
+        // cannonBody.invInertia.set(0, 0, 0);
+
+        // cannonBody.angularVelocity.set(0, 0, 0);
+        // cannonBody.angularVelocity.set(0,0,0);
+
+
         yawObject.position.copy(cannonBody.position);
     };
 };

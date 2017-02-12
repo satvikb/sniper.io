@@ -1,35 +1,13 @@
-var worldSize = 100
+var worldSize = 50
 
 
 function createStage(){
   var meshes = []
   var bodies = []
 
-
-  // var size = new CANNON.Vec3(1,1,1);
-  // var boxShape = new CANNON.Box(size);
-  // var boxGeometry = new THREE.BoxGeometry(size.x*2,size.y*2,size.z*2);
-  // material = new THREE.MeshLambertMaterial( { color: 0xdddddd } );
-  // for(var i=0; i<7; i++){
-  //   var x = (Math.random()-0.5)*100;
-  //   var y = 1 + (Math.random()-0.5)*1;
-  //   var z = (Math.random()-0.5)*100;
-  //   var boxBody = new CANNON.Body({ mass: 0 });
-  //   boxBody.addShape(boxShape);
-  //   var boxMesh = new THREE.Mesh( boxGeometry, material );
-  //
-  //   boxBody.position.set(x,y,z);
-  //   boxMesh.position.set(x,y,z);
-  //   boxMesh.castShadow = true;
-  //   boxMesh.receiveShadow = true;
-  //
-  //   bodies.push(boxBody);
-  //   meshes.push(boxMesh);
-  // }
-
-
   var boundaryThickness = 10
-  var boundarySize = new CANNON.Vec3(worldSize-(boundaryThickness), 10, boundaryThickness)
+  var boundaryHeight = 10
+  var boundarySize = new CANNON.Vec3(worldSize-(boundaryThickness), boundaryHeight, boundaryThickness)
 
   for(var i = 0; i < 4; i++){
     var boundarySideShape = new CANNON.Box(boundarySize)
@@ -86,65 +64,62 @@ function createStage(){
 }
 
 function createRandomHouse(){
-  var manager = new THREE.LoadingManager();
-	manager.onProgress = function ( item, loaded, total ) {
-		console.log( item, loaded, total );
-	};
 
-  var texture = new THREE.Texture();
+  function loadJSON(callback) {
 
-  var onProgress = function ( xhr ) {
-		if ( xhr.lengthComputable ) {
-			// var percentComplete = xhr.loaded / xhr.total * 100;
-			// console.log( Math.round(percentComplete, 2) + '% downloaded' );
-		}
-	};
-
-	var onError = function ( xhr ) {
-	};
-
-
-  var loader = new THREE.ImageLoader( manager );
-	loader.load( 'assets/textures/UV_Grid_Sm.jpg', function ( image ) {
-		texture.image = image;
-		texture.needsUpdate = true;
-	} );
-
-  var loader = new THREE.OBJLoader( manager );
-	loader.load( 'assets/models/house.obj', function ( object ) {
+      var xobj = new XMLHttpRequest();
+      xobj.overrideMimeType("application/json");
+      xobj.open('GET', '/assets/models/Obj.json', true); // Replace 'my_data' with the path to your file
+      xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+              // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+              callback(xobj.responseText);
+            }else{
+              // console.log("other "+xobj.status);
+            }
+      };
+      xobj.send(null);
+   }
 
 
-		object.traverse( function ( child ) {
-			if ( child instanceof THREE.Mesh ) {
-				child.material.map = texture; // TODO: Fix not undating texture
-        // child.material.needsUpdate = true;
+   loadJSON(function(response) {
+     // Parse JSON string into object
+     var json = JSON.parse(response)
+     var objs = json["objs"];
+     var metadata = json["metadata"]
+     var height = metadata[0]["totalHeight"]
 
-        child.castShadow = true
+     function vectorFromJSON(jsonVector){
+       return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
+     }
 
-        var shape = null;
+     function quatFromJSON(jsonVector){
+       return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
+     }
 
-        var geometry = child.geometry;
-        if(geometry.boundingBox == undefined){
-          geometry.computeBoundingBox();
-        }
-        var box = geometry.boundingBox;
+     for(var i = 0; i < objs.length; i++){
+       var obj = objs[i];
+       var pos = vectorFromJSON(obj["pos"])
+       var scale = vectorFromJSON(obj["scale"])
+       var rot = quatFromJSON(obj["rot"])
 
-        var size = new CANNON.Vec3((box.max.x - box.min.x)/2, (box.max.y - box.min.y)/2, (box.max.z - box.min.z)/2);
-        var pos = new CANNON.Vec3(box.min.x+(size.x), box.min.y+(size.y), box.min.z+(size.z));
+       var boxShape = new CANNON.Box(scale)
+       var boxGeometry = new THREE.BoxGeometry(scale.x*2, scale.y*2, scale.z*2);
 
-        // console.log("isBox")
-        shape = new CANNON.Box(size);
-        var body = new CANNON.Body({mass: 0})
-        body.addShape(shape)
-        body.position.copy(pos);
-        body.quaternion.copy(child.quaternion);
+       var material = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
 
-        world.addBody(body);
-			}
-		} );
-		object.position.y = 0;
-		scene.add( object ); // TODO: Add to scene by adding to array of objects
-    // mesh.push(object)
-    // mesh = object
-	}, onProgress, onError );
+       var boxBody = new CANNON.Body({mass: 0})
+       boxBody.addShape(boxShape)
+       boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
+       var boxMesh  = new THREE.Mesh(boxGeometry, material)
+       boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
+
+       boxMesh.position.set(pos.x, pos.y+height, pos.z)
+       boxBody.position.set(pos.x, pos.y+height, pos.z)
+
+       scene.add(boxMesh)
+       world.addBody(boxBody)
+     }
+    });
+
 }
