@@ -23,10 +23,17 @@
     var moveLeft = false;
     var moveRight = false;
 
+    var scoping = false;
     var canJump = false;
 
     var contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
     var upAxis = new CANNON.Vec3(0,1,0);
+
+    var defaultSensitivity = 0.002
+    var scopingSensitivity = 0.001
+
+    var currentSensitivity = defaultSensitivity
+
     cannonBody.addEventListener("collide",function(e){
         var contact = e.contact;
 
@@ -53,8 +60,8 @@
         var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
         var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
-        yawObject.rotation.y -= movementX * 0.002;
-        pitchObject.rotation.x -= movementY * 0.002;
+        yawObject.rotation.y -= movementX * currentSensitivity;
+        pitchObject.rotation.x -= movementY * currentSensitivity;
 
         pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
     };
@@ -90,6 +97,14 @@
                 break;
         }
 
+        if(event.shiftKey == true){
+          scoping = true
+          currentSensitivity = scopingSensitivity
+          scopingOverlay.style.display = ''
+          camera.fov = 25
+          camera.updateProjectionMatrix()
+        }
+
     };
 
     var onKeyUp = function ( event ) {
@@ -116,6 +131,16 @@
                 moveRight = false;
                 break;
 
+        }
+
+        if(event.shiftKey == false){
+          scoping = false
+          currentSensitivity = scopingSensitivity
+
+          scopingOverlay.style.display = 'none'
+          camera.fov = 75
+          camera.updateProjectionMatrix()
+          // console.log("no shift" +scoping)
         }
 
     };

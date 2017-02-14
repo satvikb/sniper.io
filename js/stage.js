@@ -69,7 +69,7 @@ function createRandomHouse(){
 
       var xobj = new XMLHttpRequest();
       xobj.overrideMimeType("application/json");
-      xobj.open('GET', '/assets/models/Obj.json', true); // Replace 'my_data' with the path to your file
+      xobj.open('GET', '/assets/models/house1.json', true); // Replace 'my_data' with the path to your file
       xobj.onreadystatechange = function () {
             if (xobj.readyState == 4 && xobj.status == "200") {
               // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
@@ -106,7 +106,9 @@ function createRandomHouse(){
        var boxShape = new CANNON.Box(scale)
        var boxGeometry = new THREE.BoxGeometry(scale.x*2, scale.y*2, scale.z*2);
 
-       var material = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
+       var material = new THREE.MeshPhongMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
+       material.shininess = 0.5
+       material.transparent = false
 
        var boxBody = new CANNON.Body({mass: 0})
        boxBody.addShape(boxShape)
@@ -114,6 +116,9 @@ function createRandomHouse(){
        var boxMesh  = new THREE.Mesh(boxGeometry, material)
        boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
 
+       boxMesh.receiveShadow = true
+       boxMesh.castShadow = true
+       boxMesh.shadowBias = -0.0008
        boxMesh.position.set(pos.x, pos.y+height, pos.z)
        boxBody.position.set(pos.x, pos.y+height, pos.z)
 
