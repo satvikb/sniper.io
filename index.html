@@ -89,6 +89,7 @@ var stats = new Stats();
 var container;
 var canvas;// = document.getElementById('canvas');
 var overlay = null;
+var scopingOverlay = null, scopingContext;
 
 var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
 
@@ -171,7 +172,7 @@ function initCannon(){
   world.addContactMaterial(physicsContactMaterial);
 
   // Create a sphere
-  var mass = 50, radius = 1, playerHeight = 2;
+  var mass = 50, radius = 0.8, playerHeight = 2;
   var size = new CANNON.Vec3(radius, radius, radius)
   sphereShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
   sphereBody = new CANNON.Body({ mass: mass });
@@ -278,7 +279,7 @@ function init() {
 
   dirLight.castShadow = true;
   dirLight.shadowMapWidth = dirLight.shadowMapHeight = 1024*2;
-  dirLight.shadowBias = 0.0002;
+  dirLight.shadowBias = -0.0007;
   dirLight.shadowDarkness = 0;
 
   var helper = new THREE.DirectionalLightHelper( dirLight );
@@ -369,8 +370,23 @@ function createOverlay(mainCanvas){
   weaponCanvas.getContext('2d').imageSmoothingEnabled = false
   weaponCanvas.getContext('2d').transform(0.65,0.5,0,1,85,0);
 
+  //scoping overlay
+  scopingOverlay = document.createElement('canvas')
+  scopingOverlay.style.zIndex="1002";//above weapon
+  scopingOverlay.style.position = 'absolute';
+  scopingOverlay.style.left = '0px';
+  scopingOverlay.style.top = '0px';
+  scopingOverlay.id = "scopingOverlay"
+  scopingOverlay.width = window.innerWidth;
+  scopingOverlay.height = window.innerHeight;
+  scopingOverlay.style.display = 'none';
+
+  scopingContext = scopingOverlay.getContext('2d')
+
+
   canvasContainer.appendChild(weaponCanvas)
   canvasContainer.appendChild(overlayCanvas);
+  canvasContainer.appendChild(scopingOverlay);
   return overlayCanvas;
 }
 
@@ -381,7 +397,7 @@ function drawOverlay() {
   var y = 40;
   context.font = "20pt Calibri";
   context.fillStyle = "#0000ff"; // text color
-  context.fillText("Hello World! ", x, y);
+  context.fillText("sniper.io ", x, y);
 
   var weaponCanvas = document.getElementById('weaponCanvas')
   var weaponContext = weaponCanvas.getContext('2d')
@@ -392,14 +408,33 @@ function drawOverlay() {
   var top = overlay.height * 0.6;
   weaponContext.drawImage(weapon.image, 0, 0, weapon.width*scale.x, weapon.height * scale.y);
 
+  scopingContext.save()
+  scopingContext.fillStyle = 'rgba(0, 0, 0, 1)';
+  scopingContext.fillRect(0, 0, window.innerWidth, window.innerHeight)
+
+  // Set global composite operation to destination-out
+  scopingContext.globalCompositeOperation = 'destination-out';
+
+  // Draw circle
+  scopingContext.strokeStyle = "#FFFFFF";
+  scopingContext.beginPath();
+  scopingContext.arc(window.innerWidth/2, window.innerHeight/2, ((window.innerWidth)/(window.innerHeight))*75, 0, Math.PI*2, false);
+  scopingContext.fill();
+
   context.restore();
   weaponContext.restore();
+  scopingContext.restore();
 }
 
 function onWindowResize() {
+  // scopingOverlay.width = window.innerWidth;
+  // scopingOverlay.height = window.innerHeight;
+
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize( window.innerWidth, window.innerHeight );
+
+
 }
 
 
@@ -425,7 +460,7 @@ function animate() {
     // }
   }
   controls.update( Date.now() - time );
-  cannonDebugRenderer.update()
+  // cannonDebugRenderer.update()
   renderer.render( scene, camera );
   drawOverlay()
 
