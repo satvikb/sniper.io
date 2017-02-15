@@ -159,6 +159,10 @@
         return yawObject;
     };
 
+    this.isScoping = function(){
+       return scoping
+    };
+
     this.getDirection = function(targetVec){
         targetVec.set(0,0,-1);
         quat.multiplyVector3(targetVec);

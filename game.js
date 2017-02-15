@@ -38,6 +38,7 @@ function onSocketConnection(client) {
     client.on("disconnect", onClientDisconnect);
     client.on("new player", onNewPlayer);
     client.on("move player", onMovePlayer);
+    client.on("hit player", onHitPlayer);
 };
 
 function onClientDisconnect() {
@@ -68,6 +69,19 @@ function onNewPlayer(data) {
 
   players.push(newPlayer);
 };
+
+function onHitPlayer(data){
+  var hitPlayer = playerById(data.id)
+
+  if(!hitPlayer){
+    console.log("(hit) player not found: "+data.id)
+  }
+
+  // TODO: Affect health here and anything else when hit by a bullet, and give data
+
+
+  this.broadcast.emit("hit player", {id: hitPlayer.id})
+}
 
 function onMovePlayer(data) {
   var movePlayer = playerById(data.id);
