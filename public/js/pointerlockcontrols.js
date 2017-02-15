@@ -4,6 +4,8 @@
  */
  var PointerLockControls = function ( camera, cannonBody ) {
 
+    var id;
+
     var eyeYPos = 2; // eyes are 2 meters above the ground
     var velocityFactor = 5;
     var jumpVelocity = 10;
@@ -29,8 +31,10 @@
     var contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
     var upAxis = new CANNON.Vec3(0,1,0);
 
-    var defaultSensitivity = 0.002
-    var scopingSensitivity = 0.001
+    var oldPos = new THREE.Vector3()//yawObject.position
+
+    var defaultSensitivity = 0.006
+    var scopingSensitivity = 0.003
 
     var currentSensitivity = defaultSensitivity
 
@@ -206,7 +210,38 @@
         // cannonBody.angularVelocity.set(0, 0, 0);
         // cannonBody.angularVelocity.set(0,0,0);
 
+        // oldPos = new THREE.Vector3().copy(this.getObject().position)
 
         yawObject.position.copy(cannonBody.position);
+    };
+
+    this.updateTestPos = function(){
+
+      var newPos = this.getRoundedVector(this.getPos())
+      oldPos = this.getRoundedVector(oldPos)
+
+      // console.log("Old: "+oldPos.x+" New: "+newPos.x)
+
+      if((newPos.x != oldPos.x) == true || (newPos.y != oldPos.y) == true || (newPos.z != oldPos.z) == true){
+        oldPos = new THREE.Vector3().copy(newPos)
+        return true;
+      }
+      // oldPos = newPos
+      return false;
+    }
+
+    this.getRoundedVector = function(vec){
+      var x = Math.round((vec.x + 0.00001) * 100) / 100
+      var y = Math.round((vec.y + 0.00001) * 100) / 100
+      var z = Math.round((vec.z + 0.00001) * 100) / 100
+      return new THREE.Vector3(x, y, z)
+    }
+
+    this.getPos = function(){
+      return this.getObject().position
+    }
+
+    this.setPos = function(pos) {
+        this.cannonBody.position.set(pos.x, pos.y, pos.z)
     };
 };
