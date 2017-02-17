@@ -10,12 +10,14 @@ var RemotePlayer = function (body, mesh ) {
   }
 
   var getPos = function(){
-    return getObject().position
+    return getBody().position
   }
 
   var setPos = function(pos){
-    this.getBody().position.set(pos.x, pos.y, pos.z)
-    this.getMesh().position.copy(this.getBody().position)
+    if(this.getBody())
+      this.getBody().position.set(pos.x, pos.y, pos.z)
+    if(this.getMesh())
+      this.getMesh().position.copy(this.getBody().position)
   }
 
   return {
