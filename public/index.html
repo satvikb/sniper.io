@@ -46,19 +46,15 @@
   </style>
 </head>
 <body>
-  <!-- <script src="libraries/socket.io.js"></script> -->
   <script src="http://sniper.satvik.co/socket.io/socket.io.js"></script>
   <script src="http://sniper.satvik.co/libraries/three.min.js"></script>
   <script src="http://sniper.satvik.co/libraries/cannon.min.js"></script>
 
-  <!-- <script src="libraries/three.min.js"></script>
-  <script src="libraries/cannon.min.js"></script> -->
   <script src="http://sniper.satvik.co/debug/Stats.js"></script>
   <script src="http://sniper.satvik.co/debug/CannonDebugRenderer.js"></script>
   <script src="http://sniper.satvik.co/js/pointerlockcontrols.js"></script>
   <script src="http://sniper.satvik.co/js/stage.js"></script>
   <script src="http://sniper.satvik.co/remotePlayer.js"></script>
-  <!-- <script src="libraries/require.js"></script> -->
 
   <div id="blocker" style="z-index: 3000;">
     <div id="instructions">
@@ -67,14 +63,6 @@
       (W,A,S,D : Move, SPACE : Jump, MOUSE : Look, CLICK : Shoot, L-Shift : Scope)
     </div>
   </div>
-
-  <!-- <div id="container">
-  <div id="threeContainer"></div>
-</div> -->
-<!-- <div id="container">
-<canvas id="canvas" style="width:100%;height:95%;border:1px gray solid;"></canvas>
-</div> -->
-
 <script>
 var sphereShape, sphereBody, world, physicsMaterial;
 var cannonDebugRenderer;
@@ -86,7 +74,6 @@ var blocker = document.getElementById( 'blocker' );
 var instructions = document.getElementById( 'instructions' );
 var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 
-
 var socket;
 var remotePlayers;
 var localPlayer;
@@ -95,16 +82,13 @@ var dt = 1/60;
 
 var stats = new Stats();
 
-
-// document.getElementById("container").style.display = 'none';
 var container;
-var canvas;// = document.getElementById('canvas');
+var canvas;
 var overlay = null;
 var scopingOverlay = null, scopingContext;
 var crosshairOverlay = null, crosshairContext;
 
 var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
-
 
 if ( havePointerLock ) {
   var element = document.body;
@@ -165,53 +149,6 @@ if ( havePointerLock ) {
 init();
 animate();
 
-// function initCannon(){
-//   // Setup our world
-//   world = new CANNON.World();
-//   world.quatNormalizeSkip = 0;
-//   world.quatNormalizeFast = false;
-//   var solver = new CANNON.GSSolver();
-//   world.defaultContactMaterial.contactEquationStiffness = 1e9;
-//   world.defaultContactMaterial.contactEquationRelaxation = 4;
-//   solver.iterations = 7;
-//   solver.tolerance = 0.1;
-//   var split = true;
-//   if(split)
-//   world.solver = new CANNON.SplitSolver(solver);
-//   else
-//   world.solver = solver;
-//   world.gravity.set(0,-20,0);
-//   world.broadphase = new CANNON.NaiveBroadphase();
-//   // Create a slippery material (friction coefficient = 0.0)
-//   physicsMaterial = new CANNON.Material("slipperyMaterial");
-//   var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
-//   // We must add the contact materials to the world
-//   world.addContactMaterial(physicsContactMaterial);
-//
-//   // Create a sphere
-//   var mass = 50, radius = 0.8, playerHeight = 2;
-//   var size = new CANNON.Vec3(radius, radius, radius)
-//   sphereShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
-//   sphereBody = new CANNON.Body({ mass: mass });
-//   sphereBody.addShape(sphereShape);
-//   sphereBody.position.set(0,2,-10);
-//   sphereBody.linearDamping = 0.9;
-//   // sphereBody.inertia.set(0, 0, 0);
-//   // sphereBody.invInertia.set(0, 0, 0);
-//
-//   sphereBody.angularDamping = 0.5
-//   // sphereBody.fixedRotation = true
-//   sphereBody.updateMassProperties();
-//   world.addBody(sphereBody);
-//   // Create a plane
-//   var groundShape = new CANNON.Plane(); //inf size
-//   var groundBody = new CANNON.Body({ mass: 0 });
-//   groundBody.addShape(groundShape);
-//   groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-//   world.addBody(groundBody);
-// }
-
-
 function initMap(){
   cw.world = new CANNON.World();
   cw.world.quatNormalizeSkip = 0;
@@ -224,9 +161,9 @@ function initMap(){
   solver.tolerance = 0.1;
   var split = true;
   if(split)
-    cw.world.solver = new CANNON.SplitSolver(solver);
+  cw.world.solver = new CANNON.SplitSolver(solver);
   else
-    cw.world.solver = solver;
+  cw.world.solver = solver;
   cw.world.gravity.set(0,-20,0);
   cw.world.broadphase = new CANNON.NaiveBroadphase();
   // Create a slippery material (friction coefficient = 0.0)
@@ -241,6 +178,8 @@ function initMap(){
   groundBody.addShape(groundShape);
   groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
   addPhysicsBody(groundBody);
+
+  cannonDebugRenderer = new THREE.CannonDebugRenderer(scene, cw.world);
 
   createStage()
 };
@@ -257,27 +196,26 @@ var cw = {} // Cannon World
 var map = {}
 var n;
 var models = {}
-var worldSize = 50
+var worldSize = 25 //HALF EXTENTS
 var tileWidth;
 
 function createStage(){
+  var boundaryThickness = 1
+  var boundaryHeight = 5
+  var boundarySize = new CANNON.Vec3(worldSize*2/*-(boundaryThickness)*/, boundaryHeight, boundaryThickness)
 
-  var bodies = []
-
-  var boundaryThickness = 10
-  var boundaryHeight = 10
-  var boundarySize = new CANNON.Vec3(worldSize-(boundaryThickness), boundaryHeight, boundaryThickness)
+  var boundaryMeshGeo = new THREE.Geometry()
 
   for(var i = 0; i < 4; i++){
-    var boundarySideShape = new CANNON.Box(boundarySize)
-    var boundarySideGeometry = new THREE.BoxGeometry(boundarySize.x*2, boundarySize.y*2, boundarySize.z*2);
+    var halfExtents = new CANNON.Vec3(boundarySize.x/2, boundarySize.y/2, boundarySize.z/2)
+    var boundarySideShape = new CANNON.Box(halfExtents)
+    var boundarySideGeometry = new THREE.BoxGeometry(boundarySize.x, boundarySize.y, boundarySize.z);
 
     var rotation = (- Math.PI / 2)*i
     boundarySideGeometry.applyMatrix( new THREE.Matrix4().makeRotationY( rotation ) );
 
     var boundaryBody = new CANNON.Body({mass: 0})
     boundaryBody.addShape(boundarySideShape)
-    // boundaryBody.wireframe
     boundaryBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rotation); //Match rotaion of geometry
 
     var boundaryMesh  = new THREE.Mesh(boundarySideGeometry, material)
@@ -304,147 +242,151 @@ function createStage(){
       xChange = worldSize
       break;
       default:
-
+      break;
     }
 
     boundaryBody.position.set(xChange, 0, zChange)
     boundaryMesh.position.set(xChange, 0, zChange)
     boundaryMesh.castShadow = false;
 
-    // meshes.push(boundaryMesh)
-    bodies.push(boundaryBody)
+    boundaryMesh.updateMatrix()
+    boundaryMeshGeo.merge(boundaryMesh.geometry, boundaryMesh.matrix)
+    addPhysicsBody(boundaryBody)
   }
+  scene.add(new THREE.Mesh(boundaryMeshGeo, material))
 
   loadModels()
 
   for(var i = 0; i < n*n; i++){
     //Create physics bodies
     if(map[i] > 0){
-      // console.log("map ")
       createHouse(map[i]-1, i)
     }
   }
 
-}
+  console.log(n)
+  //debug lines
+  for(var x = 0; x < n; x++){
+    var linePoints = new THREE.Geometry()
+    linePoints.vertices.push(new THREE.Vector3(-worldSize, 0.1, (x-(n/2))*tileWidth))
+    linePoints.vertices.push(new THREE.Vector3(worldSize, 0.1, (x-(n/2))*tileWidth))
 
+    var mat;
 
-function loadModels(){
-
-  // function loadJSON(callback, path) {
-  //   var xobj = new XMLHttpRequest();
-  //   xobj.overrideMimeType("application/json");
-  //   xobj.open('GET', path, true); // Replace 'my_data' with the path to your file
-  //   xobj.onreadystatechange = function () {
-  //       if (xobj.readyState == 4 && xobj.status == "200") {
-  //         // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-  //         callback(xobj.responseText);
-  //       }else{
-  //         // console.log("other "+xobj.status);
-  //       }
-  //     };
-  //     xobj.send(null);
-  //  }
-
-
-
-  var numModels = 1
-  for(var m = 0; m < numModels; m++){
-    // loadJSON(function(response){
-    //   models[m] = response
-    // }, "public/assets/models/house"+m+".json")
-    // models[m] = fs.readFileSync()
-
-
-    var request = new XMLHttpRequest();
-    // http://sniper.satvik.co/assets/models/house0.json
-    request.open('GET', '/assets/models/house'+m+'.json', false);  // `false` makes the request synchronous
-    request.send(null);
-    // console.log("req for model: ("+m+")"+request.responseText)
-    if (request.status === 200) {
-      // console.log("Load model "+m);
-      models[m] = request.responseText;
+    if(x == (n/2)){
+      mat = new THREE.LineBasicMaterial({color: 0x0000ff})
+    }else{
+      mat = new THREE.LineBasicMaterial({color:0xff0000})
     }
 
+    var mesh = new THREE.Line(linePoints, mat)
+    scene.add(mesh)
+
+  }
+
+  for(var y = 0; y < n; y++){
+    var linePoints = new THREE.Geometry()
+    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth, 0.1, -worldSize))
+    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth, 0.1, worldSize))
+
+    var mat;
+
+    if(y == (n/2)){
+      mat = new THREE.LineBasicMaterial({color: 0x0000ff})
+    }else{
+      mat = new THREE.LineBasicMaterial({color:0xff0000})
+    }
+
+    var mesh = new THREE.Line(linePoints, mat)
+
+    scene.add(mesh)
   }
 }
 
+function loadModels(){
+
+  var numModels = 1
+  for(var m = 0; m < numModels; m++){
+    var request = new XMLHttpRequest();
+    request.open('GET', '/assets/models/house'+m+'.json', false);  // `false` makes the request synchronous
+    request.send(null);
+
+    if (request.status === 200) {
+      models[m] = request.responseText;
+    }
+  }
+}
+
+var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
+
 function createHouse(num, gridTile){
 
-   var response = models[num]
-  //  console.log("res: ("+num+")"+response)
-   // Parse JSON string into object
-   var json = JSON.parse(response)
-   var objs = json["objs"];
-   var metadata = json["metadata"]
-   var height = metadata[0]["totalHeight"]
-   var width = metadata[0]["totalWidth"]
+  var response = models[num]
+  // Parse JSON string into object
+  var json = JSON.parse(response)
+  var objs = json["objs"];
+  var metadata = json["metadata"]
+  var height = metadata[0]["totalHeight"]
+  var width = metadata[0]["totalWidth"]
 
-   var newScale = tileWidth/width
-   var gridPos = new CANNON.Vec3((gridTile%n)*tileWidth, 0, (gridTile/n)*tileWidth)
+  // var newScale = tileWidth/width
+  var gridPos = new CANNON.Vec3((gridTile%n-(n/2))*tileWidth, 0, (gridTile/n-(n/2))*tileWidth)
 
 
-   function vectorFromJSON(jsonVector){
-     return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
-   }
+  function vectorFromJSON(jsonVector){
+    return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
+  }
 
-   function quatFromJSON(jsonVector){
-     return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
-   }
+  function quatFromJSON(jsonVector){
+    return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
+  }
+
+  function divideVector(vec, by){
+    return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
+  }
 
   //  console.log("NS: "+newScale)
+  var house = new THREE.Geometry()
 
-   for(var i = 0; i < objs.length; i++){
-     var obj = objs[i];
-     var pos = vectorFromJSON(obj["pos"])
-     var scale = vectorFromJSON(obj["scale"])
-     var rot = quatFromJSON(obj["rot"])
+  for(var i = 0; i < objs.length; i++){
+    var obj = objs[i];
+    var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
+    var scale = vectorFromJSON(obj["scale"])
+    var rot = quatFromJSON(obj["rot"])
 
-    //  scale.x = scale.x*newScale
-    //  scale.y = scale.y*newScale
-    //  scale.z = scale.z*newScale
+    // scale.x = scale.x*newScale
+    // scale.y = scale.y*newScale
+    // scale.z = scale.z*newScale
+    //
+    // pos.x = pos.x*newScale
+    // pos.y = pos.y*newScale
+    // pos.z = pos.z*newScale
 
-    //  var boxShape = new CANNON.Box(scale)
-     //
-    //  var boxBody = new CANNON.Body({mass: 0})
-    //  boxBody.addShape(boxShape)
-    //  boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
-    //  boxBody.position.set(pos.x, pos.y+height, pos.z)
-     //
-    //  cw.world.addBody(boxBody)
-
-    var boxShape = new CANNON.Box(scale)
-    var boxGeometry = new THREE.BoxGeometry(scale.x*2, scale.y*2, scale.z*2);
-
-    var material = new THREE.MeshPhongMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
-    material.shininess = 0.5
-    material.transparent = false
+    var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
+    var boxShape = new CANNON.Box(halfExtents)
+    var boxGeometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z);
 
     var boxBody = new CANNON.Body({mass: 0})
     boxBody.addShape(boxShape)
 
-    // var rotationInterval = Math.PI/2
-    // var ogQuat = new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w)
-    // var q1 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), rotationInterval)
-    //
-    // var finalQuat = ogQuat.multiplyQuaternions(q1, ogQuat)
-    // boxBody.position.set(0, 0, 0)
-    // boxBody.quaternion.set(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w)
-
-    // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
-    var boxMesh  = new THREE.Mesh(boxGeometry, material)
+    boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
+    var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
     boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
-    // boxMesh.position.set(0, 0, 0)
-    // boxMesh.setRotationFromQuaternion(new THREE.Quaternion(finalQuat.x, finalQuat.y, finalQuat.z, finalQuat.w))
 
     boxMesh.receiveShadow = true
     boxMesh.castShadow = true
     boxMesh.shadowBias = -0.0008
-    boxMesh.position.set(gridPos.x+pos.x, pos.y+height, gridPos.z+pos.z)
-    boxBody.position.set(gridPos.x+pos.x, pos.y+height, gridPos.z+pos.z)
 
-    scene.add(boxMesh)
+    var heightOffset = (height/2)//*newScale
+    boxMesh.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+    boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+    // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+
+    boxMesh.updateMatrix()
+    house.merge(boxMesh.geometry, boxMesh.matrix)
     addPhysicsBody(boxBody)
-   }
+  }
+  scene.add(new THREE.Mesh(house, houseMaterial))
 }
 
 function Bitmap(src, width, height) {
@@ -467,48 +409,14 @@ function init() {
     overlay = createOverlay(canvas)
   }
 
-
   stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
   document.body.appendChild( stats.dom );
-
 
   camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x00bfff)
-  // scene.fog = new THREE.Fog( 0x000000, 0, 500 );
   var ambient = new THREE.AmbientLight( 0x404040, 0.5 );
   scene.add( ambient );
-  // light = new THREE.DirectionalLight( 0xffffff, 1 );
-  // light.position.set( 10, 30, 20 );
-  // light.target.position.set( 0, 0, 0 );
-  // if(true){
-  //   light.castShadow = true;
-  //   light.shadowCameraNear = 20;
-  //   light.shadowCameraFar = 50;//camera.far;
-  //   light.shadowCameraFov = 40;
-  //   // light.shadowMapBias = 0.1;
-  //   // light.shadowMapDarkness = 0.7;
-  //   // light.shadowMapWidth = 2*512;
-  //   // light.shadowMapHeight = 2*512;
-  //   //light.shadowCameraVisible = true;
-  // }
-  // scene.add( light );
-  //
-  // var oppLight = new THREE.DirectionalLight( 0xffffff, 1 );
-  // oppLight.position.set( -10, 30, -20 );
-  // oppLight.target.position.set( 0, 0, 0 );
-  // if(true){
-  //   oppLight.castShadow = false;
-  //   oppLight.shadowCameraNear = 20;
-  //   oppLight.shadowCameraFar = 50;//camera.far;
-  //   oppLight.shadowCameraFov = 40;
-  //   // light.shadowMapBias = 0.1;
-  //   // light.shadowMapDarkness = 0.7;
-  //   // light.shadowMapWidth = 2*512;
-  //   // light.shadowMapHeight = 2*512;
-  //   //light.shadowCameraVisible = true;
-  // }
-  // scene.add( oppLight );
 
   var hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.6 );
   hemiLight.color.setHSL( 0.6, 1, 0.6 );
@@ -518,10 +426,8 @@ function init() {
 
   var dirLight = new THREE.DirectionalLight( 0xffffff, 0.8 );
   dirLight.position.set( -135, 146, 50 );
-  // dirLight.position.multiplyScalar( 50);
   dirLight.name = "dirlight";
   dirLight.target.position.set(0, 0, 0)
-  // dirLight.shadowCameraVisible = true;
 
   var shadowHelper = new THREE.CameraHelper( dirLight.shadow.camera );
   scene.add(shadowHelper);
@@ -536,12 +442,9 @@ function init() {
   dirLight.castShadow = true;
   dirLight.shadow.mapSize.width = dirLight.shadow.mapSize.height = 1024*2;
   dirLight.shadow.bias = -0.0007;
-  // dirLight.shadowDarkness = 0;
 
   var helper = new THREE.DirectionalLightHelper( dirLight );
   scene.add(helper);
-
-
 
   // Create a sphere
   var mass = 50, radius = 0.8, playerHeight = 2;
@@ -551,11 +454,8 @@ function init() {
   sphereBody.addShape(sphereShape);
   sphereBody.position.set(0,2,-10);
   sphereBody.linearDamping = 0.9;
-  // sphereBody.inertia.set(0, 0, 0);
-  // sphereBody.invInertia.set(0, 0, 0);
 
   localPlayer = new RemotePlayer(sphereBody, null)
-  // console.log("local player")
 
   controls = new PointerLockControls( camera , sphereBody );
   controls.oldPos = new THREE.Vector3().copy(controls.getObject().position)
@@ -566,7 +466,6 @@ function init() {
   geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
   material = new THREE.MeshLambertMaterial( { color: 0xffffff } );
   mesh = new THREE.Mesh( geometry, material );
-  // mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add( mesh );
 
@@ -577,27 +476,16 @@ function init() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMapSoft = true;
 
-  // renderer.shadowCameraFar = camera.far;
-  // renderer.shadowCameraFov = 75;
-  // renderer.shadowCameraNear = 0.1;
-
   renderer.setSize( window.innerWidth, window.innerHeight );
-  // makeStage()
 
   var axisHelper = new THREE.AxisHelper( 5 );
   scene.add( axisHelper );
 
-
-
-  // renderer.setClearColor( scene.fog.color, 1 );
-  // document.getElementById("threeContainer").appendChild( renderer.domElement );
   window.addEventListener( 'resize', onWindowResize, false );
-
-  cannonDebugRenderer = new THREE.CannonDebugRenderer(scene, world);
 
   remotePlayers = [];
 
-  socket = io.connect("http://sniper.satvik.co")//("http://localhost", {port: 8000, transports: ["websocket"]});
+  socket = io.connect("http://sniper.satvik.co")
   setSocketEventHandlers()
 
 }
@@ -606,7 +494,7 @@ function setSocketEventHandlers(){
   socket.on("connect", onSocketConnected);
   socket.on("disconnect", onSocketDisconnect);
   socket.on("new player", onNewPlayer);
-  socket.on("move player", onMovePlayer);
+  // socket.on("move player", onMovePlayer);
   socket.on("hit player", onHitPlayer);
   socket.on("remove player", onRemovePlayer);
   socket.on("mapData", onMapData);
@@ -614,49 +502,24 @@ function setSocketEventHandlers(){
 }
 
 function onMapData(data){
-  // console.log("Got map data "+data.n+" "+data.map[0])
   map = data.map
   n = data.n
   tileWidth = (worldSize*2)/n
   initMap()
 }
 
-// function makeStage(){
-//   var stage = createStage()
-//   var meshes = stage[0]
-//   var bodies = stage[1]
-//
-//   var numMeshes = meshes.length
-//   var numBodies = bodies.length
-//
-//   // if(numMeshes == numBodies){
-//     for(var i = 0; i < numMeshes; i++){
-//       var mesh = meshes[i]
-//       var body = bodies[i]
-//
-//       // var box = new THREE.BoxHelper( mesh, 0xffff00 );
-//       // scene.add( box );
-//
-//       // Because the stage is static we don't add them to a array for updating
-//       if(mesh) scene.add(mesh)
-//       if(body) world.addBody(body)
-//     }
-//   // }
-// }
-
 function onUpdatePlayers(data){
   var playerData = data.data
   for(var p = 0; p < playerData.length; p++){
     var id = playerData[p].id
     var position = playerData[p].position
-    // console.log("UP: "+p+" "+id)
+
     var player = playerById(id)
 
     if(!player && id != socket.id){
       return
     }
 
-    // console.log("p2: "+position.x+" "+position.y+" "+position.z)
     if(socket.id == id){
       localPlayer.setPos(position)
     }else{
@@ -753,7 +616,6 @@ function drawOverlay() {
   var radius = ((window.innerWidth)/(window.innerHeight))*75
   var crosshairadius = ((window.innerWidth)/(window.innerHeight))*10
 
-  // scopingContext.globalCompositeOperation = 'source-in';
   scopingContext.beginPath();
   scopingContext.arc(centerX, centerY, radius, 0, Math.PI*2, false);
   scopingContext.fill();
@@ -784,73 +646,48 @@ function drawOverlay() {
 }
 
 function onWindowResize() {
-  // scopingOverlay.width = window.innerWidth;
-  // scopingOverlay.height = window.innerHeight;
-
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize( window.innerWidth, window.innerHeight );
-
-
 }
 
 function onSocketConnected() {
-    console.log("Connected to socket server "+socket.id);
-    var pos = controls.getPos()
-    // controls.id =
-    socket.emit("mapData")
-    socket.emit("new player", {id: socket.id});
+  console.log("Connected to socket server "+socket.id);
+  var pos = controls.getPos()
+  socket.emit("mapData")
+  socket.emit("new player", {id: socket.id});
 };
 
 function onSocketDisconnect() {
-    // console.log("Disconnected from socket server");
+  // console.log("Disconnected from socket server");
 };
 
 var ballGeometry = new THREE.SphereGeometry(0.4, 32, 32);
 
 function onNewPlayer(data) {
-    console.log("New player connected: "+data.id);
+  // console.log("New player connected: "+data.id);
 
-    var mass = 50, radius = 0.8, playerHeight = 2;
+  var mass = 50, radius = 0.8, playerHeight = 2;
 
-    var size = new CANNON.Vec3(radius, radius, radius)
-    var bodyShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
-    var body = new CANNON.Body({ mass: mass });
-    body.linearDamping = 0.9;
-    // sphereBody.inertia.set(0, 0, 0);
-    // sphereBody.invInertia.set(0, 0, 0);
+  var size = new CANNON.Vec3(radius, radius, radius)
+  var bodyShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
+  var body = new CANNON.Body({ mass: mass });
+  body.linearDamping = 0.9;
 
-    sphereBody.angularDamping = 0.5
-    // sphereBody.fixedRotation = true
-    sphereBody.updateMassProperties();
+  sphereBody.angularDamping = 0.5
+  sphereBody.updateMassProperties();
 
+  var shape = new THREE.SphereGeometry(bodyShape.radius, 32, 32);
+  var mesh = new THREE.Mesh( ballGeometry, material );
 
+  var newPlayer = new RemotePlayer(body, mesh)
+  newPlayer.id = data.id
+  newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
 
-    var shape = new THREE.SphereGeometry(bodyShape.radius, 32, 32);
-    var mesh = new THREE.Mesh( ballGeometry, material );
-
-
-    var newPlayer = new RemotePlayer(body, mesh)
-    newPlayer.id = data.id
-    newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
-
-    newPlayer.getBody().addShape(bodyShape);
-    cw.world.addBody(newPlayer.getBody());
-    scene.add(newPlayer.getMesh())
-    remotePlayers.push(newPlayer)
-
-
-};
-
-function onMovePlayer(data) {
-  // var movePlayer = playerById(data.id);
-  //
-  // if (!movePlayer) {
-  //     console.log("Player not found: "+data.id);
-  //     return;
-  // };
-  // // console.log("Moving player "+data.id)
-  // movePlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
+  newPlayer.getBody().addShape(bodyShape);
+  addPhysicsBody(newPlayer.getBody());
+  scene.add(newPlayer.getMesh())
+  remotePlayers.push(newPlayer)
 };
 
 function onHitPlayer(data){
@@ -869,8 +706,8 @@ function onRemovePlayer(data) {
   var removePlayer = playerById(data.id);
 
   if (!removePlayer) {
-      console.log("Player not found: "+data.id);
-      return;
+    console.log("Player not found: "+data.id);
+    return;
   };
 
   scene.remove(removePlayer.getMesh())
@@ -879,56 +716,33 @@ function onRemovePlayer(data) {
   remotePlayers.splice(remotePlayers.indexOf(removePlayer), 1);
 };
 
-
 function playerById(id) {
-    var i;
-    for (i = 0; i < remotePlayers.length; i++) {
-        if (remotePlayers[i].id == id)
-            return remotePlayers[i];
-    };
+  var i;
+  for (i = 0; i < remotePlayers.length; i++) {
+    if (remotePlayers[i].id == id)
+    return remotePlayers[i];
+  };
 
-    return false;
+  return false;
 };
 
-// function updateWorld(){
-//
-// }
-
-
 function animate() {
-
   stats.begin()
-
-  // if(controls.enabled){
-    // world.step(dt);
-    // Update ball positions
-    // for(var i=0; i<balls.length; i++){
-    //   ballMeshes[i].position.copy(balls[i].position);
-    //   ballMeshes[i].quaternion.copy(balls[i].quaternion);
-    // }
-
-
   controls.update( Date.now() - time );
-  // if (controls.updateTestPos() == true) {
-  //   var pos = controls.getObject().position
-  //   // console.log("update move")
-  //   socket.emit("move player", {id: socket.id, x: pos.x, y: pos.y, z: pos.z});
-  // };
 
   var inputs = controls.inputs()
   // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
-      socket.emit("move player", {id: socket.id, inputs: inputs});
+  socket.emit("move player", {id: socket.id, inputs: inputs});
   // }
 
 
-  // console.log("Old: "+conrols.oldPos.x+" New: "+controls.getObject().position.x)
+  if(cannonDebugRenderer)
+    cannonDebugRenderer.update()
 
-  // cannonDebugRenderer.update()
   renderer.render( scene, camera );
   drawOverlay()
 
   stats.end()
-
   time = Date.now();
 
   requestAnimationFrame( animate );
@@ -965,30 +779,6 @@ window.addEventListener("click",function(e){
     }
   }
 });
-
-// THREE.Object3D.prototype.rotateAroundWorldAxis = function() {
-//
-//     // rotate object around axis in world space (the axis passes through point)
-//     // axis is assumed to be normalized (important!)
-//     // angle is in radians
-//
-//     var q1 = new THREE.Quaternion();
-//
-//     return function ( point, axis, angle ) {
-//
-//         q1.setFromAxisAngle( axis, angle );
-//
-//         this.quaternion.multiplyQuaternions( q1, this.quaternion );
-//
-//         this.position.sub( point );
-//         this.position.applyQuaternion( q1 );
-//         this.position.add( point );
-//
-//         return this;
-//
-//     }
-//
-// }();
 
 </script>
 </body>
