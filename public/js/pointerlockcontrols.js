@@ -24,6 +24,7 @@
     var moveBackward = false;
     var moveLeft = false;
     var moveRight = false;
+    var jumpBtn = false;
 
     var scoping = false;
     var canJump = false;
@@ -98,6 +99,7 @@
                     velocity.y = jumpVelocity;
                 }
                 canJump = false;
+                jumpBtn = true;
                 break;
         }
 
@@ -108,6 +110,7 @@
           camera.fov = 25
           camera.updateProjectionMatrix()
         }
+
 
     };
 
@@ -133,6 +136,9 @@
             case 39: // right
             case 68: // d
                 moveRight = false;
+                break;
+            case 32:
+                jumpBtn = false
                 break;
 
         }
@@ -219,19 +225,30 @@
         yawObject.position.copy(cannonBody.position);
     };
 
-    this.updateTestPos = function(){
+    this.inputs = function(){
 
-      var newPos = this.getRoundedVector(this.getPos())
-      oldPos = this.getRoundedVector(oldPos)
-
-      // console.log("Old: "+oldPos.x+" New: "+newPos.x)
-
-      if((newPos.x != oldPos.x) == true || (newPos.y != oldPos.y) == true || (newPos.z != oldPos.z) == true){
-        oldPos = new THREE.Vector3().copy(newPos)
-        return true;
+      var inputs = {
+        left: moveLeft,
+        right: moveRight,
+        backward: moveBackward,
+        forward: moveForward,
+        jump: jumpBtn,
+        rotX: pitchObject.rotation.x,
+        rotY: yawObject.rotation.y
       }
-      // oldPos = newPos
-      return false;
+
+      // var newPos = this.getRoundedVector(this.getPos())
+      // oldPos = this.getRoundedVector(oldPos)
+      //
+      // // console.log("Old: "+oldPos.x+" New: "+newPos.x)
+      //
+      // if((newPos.x != oldPos.x) == true || (newPos.y != oldPos.y) == true || (newPos.z != oldPos.z) == true){
+      //   oldPos = new THREE.Vector3().copy(newPos)
+      //   return true;
+      // }
+      // // oldPos = newPos
+      // return false;
+        return inputs;
     }
 
     this.getRoundedVector = function(vec){
