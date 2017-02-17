@@ -179,7 +179,14 @@
     var euler = new THREE.Euler();
     this.update = function ( delta ) {
 
-        if ( scope.enabled === false ) return;
+        if ( scope.enabled === false ){
+          moveForward = false
+          moveBackward = false
+          moveLeft = false
+          moveRight = false
+          jumpBtn = false
+          return;
+        }
 
         delta *= 0.1;
 

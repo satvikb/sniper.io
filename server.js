@@ -254,7 +254,7 @@ function Game(){
     tileWidth = (worldSize*2)/n
 
     for(var i = 0; i < n*n; i++){
-      if(i%n != n/2 && i/n != n/2)
+      if(i%n != n/2 && i/n != n/2 && i%n != 0 && i%n != n-1 && i/n != 0 && i/n != n-1)
         map[i] = this.getRandomInt(0, 100) < 30 ? this.getRandomInt(1, 1) : 0
     }
     console.log("created map ("+n+")"+map[0])

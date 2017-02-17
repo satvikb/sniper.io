@@ -133,8 +133,6 @@ if ( havePointerLock ) {
       document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
       element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
       element.requestFullscreen();
-
-
     } else {
       element.requestPointerLock();
     }
@@ -142,7 +140,7 @@ if ( havePointerLock ) {
     document.getElementById("container").style.display = '';
   }, false );
 } else {
-  instructions.innerHTML = 'Your browser doesn\'t seem to support Pointer Lock API';
+  instructions.innerHTML = 'Oh well, your browser doesn\'t seem to support SNIPER.IO';
 }
 
 // initCannon();
@@ -373,9 +371,9 @@ function createHouse(num, gridTile){
     var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
     boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
 
-    boxMesh.receiveShadow = true
-    boxMesh.castShadow = true
-    boxMesh.shadowBias = -0.0008
+    // boxMesh.receiveShadow = true
+    // boxMesh.castShadow = true
+    // boxMesh.shadowBias = -0.0008
 
     var heightOffset = (height/2)//*newScale
     boxMesh.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
@@ -386,7 +384,11 @@ function createHouse(num, gridTile){
     house.merge(boxMesh.geometry, boxMesh.matrix)
     addPhysicsBody(boxBody)
   }
-  scene.add(new THREE.Mesh(house, houseMaterial))
+  var houseMesh = new THREE.Mesh(house, houseMaterial)
+  // houseMesh.castShadow = true
+  // houseMesh.receiveShadow = true
+  // houseMesh.shadowBias = -0.008
+  scene.add(houseMesh)
 }
 
 function Bitmap(src, width, height) {
