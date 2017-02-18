@@ -49,6 +49,7 @@ function onClientDisconnect() {
     return;
   };
 
+  game.removePhysicsBody(removePlayer.getBody())
   players.splice(players.indexOf(removePlayer), 1);
   this.broadcast.emit("remove player", {id: this.id});
 };
@@ -56,11 +57,13 @@ function onClientDisconnect() {
 function onNewPlayer(data) {
   var mass = 50, radius = 0.8, playerHeight = 2;
 
-  var size = new CANNON.Vec3(radius, radius, radius)
-  var bodyShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
-  var body = new CANNON.Body({ mass: mass });
+  var size = new CANNON.Vec3(radius/2, radius, radius/2)
+  var bodyShape = new CANNON.Box(size)//new CANNON.Sphere(radius)//new CANNON.Box(size)
+  var body = new CANNON.Body({ mass: mass,
+                               angularFactor: new CANNON.Vec3(0, 1, 0)
+                             });
   body.linearDamping = 0.9;
-  body.position.set(0, 3, 0)
+  body.position.set(1, 3, 0)
 
   body.angularDamping = 0.5
   body.updateMassProperties();
@@ -115,6 +118,7 @@ function sendUpdate(){
       plData.id = players[i].getId()
 
       plData.position = players[i].getPos()
+      plData.quat = players[i].getQuat()
       updateData.push(plData)
     }
     return updateData;
@@ -146,7 +150,7 @@ function loop() {
 }
 
 function Game(){
-  var map = {}
+  var map = []
   var models = {}
   var cw = {} // Cannon World
   var dt = 1/60;
@@ -228,17 +232,22 @@ function Game(){
         break;
       }
 
-      boundaryBody.position.set(xChange, 0, zChange)
+      boundaryBody.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
       this.addPhysicsBody(boundaryBody)
     }
 
     this.loadModels()
     this.createMap(n)
 
-    for(var i = 0; i < n*n; i++){
+    for(var x = 0; x < n; x++){
+      for(var y = 0; y < n; y++){
       //Create physics bodies
-      if(map[i] > 0){
-        this.createHouse(map[i]-1, i)
+      // if(map[i] > 0){
+      //   this.createHouse(map[i]-1, i)
+      // }
+        if(map[x][y] > 0){
+          this.createTile(x,y)
+        }
       }
     }
   }
@@ -250,14 +259,33 @@ function Game(){
     }
   }
 
-  this.createMap = function(n){
+  this.createMap = function(nO){
+    n = 9//nO % 2 == 0 ? nO-1 : n //always odd
+
     tileWidth = (worldSize*2)/n
 
-    for(var i = 0; i < n*n; i++){
-      if(i%n != n/2 && i/n != n/2 && i%n != 0 && i%n != n-1 && i/n != 0 && i/n != n-1)
-        map[i] = this.getRandomInt(0, 100) < 30 ? this.getRandomInt(1, 1) : 0
-    }
+    // for(var i = 0; i < n*n; i++){
+    //   if(i%n != n/2 && i/n != n/2 && i%n != 0 && i%n != n-1 && i/n != 0 && i/n != n-1)
+    //     map[i] = this.getRandomInt(0, 100) < 30 ? this.getRandomInt(1, 1) : 0
+    //   else
+    //     map[i] = 0
+    // }
+
+    //11x11
+    map = [[0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0],
+           [0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 0],
+           [0, 1, 1, 0, 2, 0, 2, 0, 0, 1, 0],
+           [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+           [0, 1, 2, 1, 1, 0, 1, 1, 1, 1, 0],
+           [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0],
+           [0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0],
+           [0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0],
+           [0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0],
+           [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
+           [0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0]]
+
     console.log("created map ("+n+")"+map[0])
+
   }
 
   this.getMap = function(){
@@ -266,6 +294,52 @@ function Game(){
 
   this.getN = function(){
     return n
+  }
+
+  this.createTile = function(x, y){
+    var tile = map[x][y]
+    // var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
+    var gridPos = new CANNON.Vec3((x-(n/2))*tileWidth, 0, (y-(n/2))*tileWidth)
+
+    if(tile){
+      if(tile == 0){
+        return
+      }
+
+      if(tile == 1){
+        var size = tileWidth
+        var halfExtents = new CANNON.Vec3(size/2, size/2, size/2)
+        var boxShape = new CANNON.Box(halfExtents)
+
+        var boxBody = new CANNON.Body({mass: 0})
+        boxBody.addShape(boxShape)
+
+        // var heightOffset = (height/2)//*newScale
+        // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+        // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+        // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+        boxBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+
+        this.addPhysicsBody(boxBody)
+      }
+
+      if(tile == 2){
+        var size = new CANNON.Vec3(tileWidth, tileWidth/4, tileWidth)
+        var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
+        var boxShape = new CANNON.Box(halfExtents)
+
+        var boxBody = new CANNON.Body({mass: 0})
+        boxBody.addShape(boxShape)
+
+        // var heightOffset = (height/2)//*newScale
+        // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+        // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+        // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+        boxBody.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
+
+        this.addPhysicsBody(boxBody)
+      }
+    }
   }
 
   this.createHouse = function(num, gridTile){
@@ -325,6 +399,12 @@ function Game(){
 
   this.addPhysicsBody = function(body){
     cw.world.addBody(body)
+  }
+
+  this.removePhysicsBody = function(body){
+    if(body){
+      cw.world.remove(body)
+    }
   }
 
   this.updatePhysics = function(){
@@ -445,6 +525,10 @@ var Player = function(id, body) {
   this.getPos = function(){
     this.updatePosition()
     return position
+  }
+
+  this.getQuat = function(){
+    return body.quaternion
   }
 };
 

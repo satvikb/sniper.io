@@ -64,7 +64,7 @@
     </div>
   </div>
 <script>
-var sphereShape, sphereBody, world, physicsMaterial;
+var sphereShape, sphereBody, physicsMaterial;
 var cannonDebugRenderer;
 var camera, scene, renderer, raycaster;
 var geometry, material, mesh;
@@ -191,11 +191,13 @@ function updatePhysics(){
 }
 
 var cw = {} // Cannon World
-var map = {}
+var map = []
 var n;
 var models = {}
 var worldSize = 25 //HALF EXTENTS
 var tileWidth;
+
+var stage = new THREE.Geometry()
 
 function createStage(){
   var boundaryThickness = 1
@@ -243,8 +245,8 @@ function createStage(){
       break;
     }
 
-    boundaryBody.position.set(xChange, 0, zChange)
-    boundaryMesh.position.set(xChange, 0, zChange)
+    boundaryBody.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
+    boundaryMesh.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
     boundaryMesh.castShadow = false;
 
     boundaryMesh.updateMatrix()
@@ -255,23 +257,30 @@ function createStage(){
 
   loadModels()
 
-  for(var i = 0; i < n*n; i++){
-    //Create physics bodies
-    if(map[i] > 0){
-      createHouse(map[i]-1, i)
+  for(var x = 0; x < n; x++){
+    for(var y = 0; y < n; y++){
+    // if(map[i] > 0){
+    //   this.createHouse(map[i]-1, i)
+    // }
+      if(map[x][y] > 0){
+        this.createTile(x,y)
+      }
     }
   }
+
+  var stageMesh = new THREE.Mesh(stage, houseMaterial)
+  scene.add(stageMesh)
 
   console.log(n)
   //debug lines
   for(var x = 0; x < n; x++){
     var linePoints = new THREE.Geometry()
-    linePoints.vertices.push(new THREE.Vector3(-worldSize, 0.1, (x-(n/2))*tileWidth))
-    linePoints.vertices.push(new THREE.Vector3(worldSize, 0.1, (x-(n/2))*tileWidth))
+    linePoints.vertices.push(new THREE.Vector3(-worldSize-(tileWidth/2), 0.1, (x-(n/2))*tileWidth-(tileWidth/2)))
+    linePoints.vertices.push(new THREE.Vector3(worldSize-(tileWidth/2), 0.1, (x-(n/2))*tileWidth-(tileWidth/2)))
 
     var mat;
 
-    if(x == (n/2)){
+    if(x == (n+1/2)){
       mat = new THREE.LineBasicMaterial({color: 0x0000ff})
     }else{
       mat = new THREE.LineBasicMaterial({color:0xff0000})
@@ -284,12 +293,12 @@ function createStage(){
 
   for(var y = 0; y < n; y++){
     var linePoints = new THREE.Geometry()
-    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth, 0.1, -worldSize))
-    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth, 0.1, worldSize))
+    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth-(tileWidth/2), 0.1, -worldSize-(tileWidth/2)))
+    linePoints.vertices.push(new THREE.Vector3((y-(n/2))*tileWidth-(tileWidth/2), 0.1, worldSize-(tileWidth/2)))
 
     var mat;
 
-    if(y == (n/2)){
+    if(y == (n+1/2)){
       mat = new THREE.LineBasicMaterial({color: 0x0000ff})
     }else{
       mat = new THREE.LineBasicMaterial({color:0xff0000})
@@ -316,6 +325,56 @@ function loadModels(){
 }
 
 var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
+
+this.createTile = function(x, y){
+  var tile = map[x][y]
+  // var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
+  // var gridPos = new CANNON.Vec3(x*tileWidth, 0, y*tileWidth)
+  var gridPos = new CANNON.Vec3((x-(n/2))*tileWidth, 0, (y-(n/2))*tileWidth)
+
+  if(tile){
+    if(tile == 0){
+      return
+    }
+
+    if(tile == 1){
+      var size = tileWidth
+      var halfExtents = new CANNON.Vec3(size/2, size/2, size/2)
+      var boxShape = new CANNON.Box(halfExtents)
+
+      var boxBody = new CANNON.Body({mass: 0})
+      boxBody.addShape(boxShape)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+
+
+      var boxGeometry = new THREE.BoxGeometry(size, size, size);
+      var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
+      boxMesh.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      boxMesh.updateMatrix()
+      stage.merge(boxMesh.geometry, boxMesh.matrix)
+
+      this.addPhysicsBody(boxBody)
+    }
+
+    if(tile == 2){
+      var size = new CANNON.Vec3(tileWidth, tileWidth/4, tileWidth)
+      var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
+      var boxShape = new CANNON.Box(halfExtents)
+
+      var boxBody = new CANNON.Body({mass: 0})
+      boxBody.addShape(boxShape)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
+
+      var boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+      var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
+      boxMesh.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
+      boxMesh.updateMatrix()
+      stage.merge(boxMesh.geometry, boxMesh.matrix)
+
+      this.addPhysicsBody(boxBody)
+    }
+  }
+}
 
 function createHouse(num, gridTile){
 
@@ -384,10 +443,8 @@ function createHouse(num, gridTile){
     house.merge(boxMesh.geometry, boxMesh.matrix)
     addPhysicsBody(boxBody)
   }
+
   var houseMesh = new THREE.Mesh(house, houseMaterial)
-  // houseMesh.castShadow = true
-  // houseMesh.receiveShadow = true
-  // houseMesh.shadowBias = -0.008
   scene.add(houseMesh)
 }
 
@@ -450,12 +507,21 @@ function init() {
 
   // Create a sphere
   var mass = 50, radius = 0.8, playerHeight = 2;
-  var size = new CANNON.Vec3(radius, radius, radius)
-  sphereShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
-  sphereBody = new CANNON.Body({ mass: mass });
+  // var size = new CANNON.Vec3(radius, radius, radius)
+  // sphereShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
+  // sphereBody = new CANNON.Body({ mass: mass });
+
+
+  var size = new CANNON.Vec3(radius/2, radius, radius/2)
+  var sphereShape = new CANNON.Box(size)// new CANNON.Sphere(radius)//
+  var sphereBody = new CANNON.Body({ mass: mass,
+                               angularFactor: new CANNON.Vec3(0, 1, 0)
+                             });
+
   sphereBody.addShape(sphereShape);
-  sphereBody.position.set(0,2,-10);
+  sphereBody.position.set(0,3,0);
   sphereBody.linearDamping = 0.9;
+  sphereBody.angularDamping = 0.5
 
   localPlayer = new RemotePlayer(sphereBody, null)
 
@@ -515,6 +581,7 @@ function onUpdatePlayers(data){
   for(var p = 0; p < playerData.length; p++){
     var id = playerData[p].id
     var position = playerData[p].position
+    var quat = playerData[p].quat
 
     var player = playerById(id)
 
@@ -524,8 +591,10 @@ function onUpdatePlayers(data){
 
     if(socket.id == id){
       localPlayer.setPos(position)
+      localPlayer.setQuat(quat)
     }else{
       player.setPos(position)
+      player.setQuat(quat)
     }
   }
 }
@@ -664,22 +733,24 @@ function onSocketDisconnect() {
   // console.log("Disconnected from socket server");
 };
 
-var ballGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+var mass = 50, radius = 0.8, playerHeight = 2;
+var ballGeometry = new THREE.BoxGeometry(radius, radius*2, radius);
 
 function onNewPlayer(data) {
   // console.log("New player connected: "+data.id);
 
-  var mass = 50, radius = 0.8, playerHeight = 2;
 
-  var size = new CANNON.Vec3(radius, radius, radius)
-  var bodyShape = new CANNON.Sphere(radius)//new CANNON.Box(size)
-  var body = new CANNON.Body({ mass: mass });
+  var size = new CANNON.Vec3(radius/2, radius, radius/2)
+  var bodyShape = new CANNON.Box(size)//new CANNON.Sphere(radius)
+  var body = new CANNON.Body({ mass: mass,
+                               angularFactor: new CANNON.Vec3(0, 1, 0)
+                             });
   body.linearDamping = 0.9;
 
-  sphereBody.angularDamping = 0.5
-  sphereBody.updateMassProperties();
+  body.angularDamping = 0.5
+  body.updateMassProperties();
 
-  var shape = new THREE.SphereGeometry(bodyShape.radius, 32, 32);
+  // var shape = new THREE.BoxGeometry(bodyShape.radius, 32, 32);
   var mesh = new THREE.Mesh( ballGeometry, material );
 
   var newPlayer = new RemotePlayer(body, mesh)
@@ -713,7 +784,7 @@ function onRemovePlayer(data) {
   };
 
   scene.remove(removePlayer.getMesh())
-  world.remove(removePlayer.getBody())
+  cw.world.remove(removePlayer.getBody())
 
   remotePlayers.splice(remotePlayers.indexOf(removePlayer), 1);
 };

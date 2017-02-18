@@ -9,6 +9,7 @@ var RemotePlayer = function (body, mesh ) {
     return mesh
   }
 
+
   var getPos = function(){
     return getBody().position
   }
@@ -20,10 +21,24 @@ var RemotePlayer = function (body, mesh ) {
       this.getMesh().position.copy(this.getBody().position)
   }
 
+
+  var getQuat = function(quat){
+      return getBody().quaternion
+  }
+
+  var setQuat = function(quat){
+    if(this.getBody())
+      this.getBody().quaternion.set(quat.x, quat.y, quat.z, quat.w)
+    if(this.getMesh())
+      this.getMesh().quaternion.copy(this.getBody().quaternion)
+  }
+
   return {
     getBody, getBody,
     getMesh, getMesh,
     setPos: setPos,
-    getPos: getPos
+    getPos: getPos,
+    getQuat: getQuat,
+    setQuat: setQuat
   }
 };
