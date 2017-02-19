@@ -193,8 +193,9 @@ function Game(){
   };
 
   var worldSize = 15
+  var boundaryWhitespace = 10
   var boundaryThickness = 1
-  var boundaryHeight = 5
+  var boundaryHeight = 20
 
   var tileWidth;
 
@@ -204,7 +205,7 @@ function Game(){
   this.createStage = function(){
     this.createMap(n)
 
-    var boundarySize = new CANNON.Vec3(worldSize*2, boundaryHeight, boundaryThickness)
+    var boundarySize = new CANNON.Vec3(worldSize*2+(boundaryWhitespace*2), boundaryHeight, boundaryThickness)
 
     for(var i = 0; i < 4; i++){
       var halfExtents = new CANNON.Vec3(boundarySize.x/2, boundarySize.y/2, boundarySize.z/2)
@@ -220,20 +221,20 @@ function Game(){
 
       switch (i) {
         case 0:
-        zChange = -worldSize
+        zChange = -worldSize-boundaryWhitespace
         xChange = 0
         break;
         case 1:
         zChange = 0
-        xChange = -worldSize
+        xChange = -worldSize-boundaryWhitespace
         break;
         case 2:
-        zChange = worldSize
+        zChange = worldSize+boundaryWhitespace
         xChange = 0
         break;
         case 3:
         zChange = 0
-        xChange = worldSize
+        xChange = worldSize+boundaryWhitespace
         break;
         default:
         break;
@@ -247,7 +248,7 @@ function Game(){
 
     slopeData = this.createSlope(tileWidth, tileWidth)
 
-    for(var x = 0; x < n; x++){
+    for(var x = n-1; x >= 0; x--){
       for(var y = 0; y < n; y++){
       //Create physics bodies
       // if(map[i] > 0){
@@ -273,19 +274,22 @@ function Game(){
 
     //TODO: Layers, add extra dimension
     //11x11
-    map = [[0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0],
-           [0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 0],
-           [0, 1, 5, 0, 2, 0, 2, 0, 0, 1, 0],
-           [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
-           [0, 1, 2, 1, 1, 0, 1, 1, 1, 1, 0],
-           [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0],
-           [0, 1, 0, 1, 1, 0, 1, 1, 4, 1, 0],
-           [0, 1, 0, 0, 1, 0, 3, 1, 1, 1, 0],
-           [0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0],
-           [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
-           [0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0]]
 
-    console.log("created map ("+n+")"+map[0])
+    //    (-n/2, -n/2) Q32             (n/2, -n/2)  Q1
+    map = [[1, 5, 0, 0, 0, 0, 3, 1, 1, 2, 2],
+           [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+           [0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1],
+           [6, 0, 0, 0, 0, 0, 0, 4, 0, 0, 1],
+           [1, 0, 0, 0, 0, 0, 0, 5, 0, 0, 2],
+           [1, 0, 0, 0, 0, 0, 0, 6, 0, 3, 2],
+           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+           [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
+           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+           [1, 5, 0, 3, 1, 1, 2, 2, 5, 0, 0]]
+    //     (-n/2, n/2) Q3               (n/2, n/2) Q4
+
+    console.log("created map ("+n+")")
 
   }
 
@@ -294,17 +298,17 @@ function Game(){
   }
 
   this.getWorldData = function(){
-    return {worldSize: worldSize, n: n, tileWidth, tileWidth, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight}
+    return {worldSize: worldSize, n: n, tileWidth, tileWidth, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight, boundaryWhitespace: boundaryWhitespace}
   }
 
   this.getN = function(){
     return n
   }
 
-  this.createTile = function(x, y){
+  this.createTile = function(x, y, layer){
     var tile = map[x][y]
     // var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
-    var gridPos = new CANNON.Vec3((x-(n/2))*tileWidth, 0, (y-(n/2))*tileWidth)
+    var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), 0, (y-(n/2))*tileWidth)
 
     if(tile){
       //None
@@ -538,9 +542,9 @@ var Player = function(id, body) {
       contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
     }
     // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-    if(contactNormal.dot(upAxis) > 0){ // Use a "good" threshold value between 0 and 1 here!
+    // if(contactNormal.dot(upAxis) > 0){ // Use a "good" threshold value between 0 and 1 here!
       canJump = true;
-    }
+    // }
   })
 
   this.getId = function(){
