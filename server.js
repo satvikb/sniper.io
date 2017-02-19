@@ -35,7 +35,7 @@ function onSocketConnection(client) {
   client.on("hit player", onHitPlayer);
 
   client.on('mapData', function(){
-    this.emit('mapData', {map: game.getMap(), n: game.getN()})
+    this.emit('mapData', {map: game.getMap(), world: game.getWorldData()})
   })
 };
 
@@ -58,7 +58,8 @@ function onNewPlayer(data) {
   var mass = 50, radius = 0.8, playerHeight = 2;
 
   var size = new CANNON.Vec3(radius/2, radius, radius/2)
-  var bodyShape = new CANNON.Box(size)//new CANNON.Sphere(radius)//new CANNON.Box(size)
+  // var bodyShape = new CANNON.Box(size)
+  var bodyShape = new CANNON.Sphere(radius)
   var body = new CANNON.Body({ mass: mass,
                                angularFactor: new CANNON.Vec3(0, 1, 0)
                              });
@@ -176,10 +177,10 @@ function Game(){
     cw.world.gravity.set(0,-20,0);
     cw.world.broadphase = new CANNON.NaiveBroadphase();
     // Create a slippery material (friction coefficient = 0.0)
-    physicsMaterial = new CANNON.Material("slipperyMaterial");
-    var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
-    // We must add the contact materials to the world
-    cw.world.addContactMaterial(physicsContactMaterial);
+    // physicsMaterial = new CANNON.Material("slipperyMaterial");
+    // var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
+    // // We must add the contact materials to the world
+    // cw.world.addContactMaterial(physicsContactMaterial);
 
     //Ground plane
     var groundShape = new CANNON.Plane(); //inf size
@@ -191,12 +192,18 @@ function Game(){
     this.createStage()
   };
 
-  var worldSize = 25
+  var worldSize = 15
+  var boundaryThickness = 1
+  var boundaryHeight = 5
+
   var tileWidth;
 
+
+  var slopeData;
+
   this.createStage = function(){
-    var boundaryThickness = 1
-    var boundaryHeight = 5
+    this.createMap(n)
+
     var boundarySize = new CANNON.Vec3(worldSize*2, boundaryHeight, boundaryThickness)
 
     for(var i = 0; i < 4; i++){
@@ -232,12 +239,13 @@ function Game(){
         break;
       }
 
-      boundaryBody.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
+      boundaryBody.position.set(xChange-(tileWidth/2), boundaryHeight/2, zChange-(tileWidth/2))
       this.addPhysicsBody(boundaryBody)
     }
 
     this.loadModels()
-    this.createMap(n)
+
+    slopeData = this.createSlope(tileWidth, tileWidth)
 
     for(var x = 0; x < n; x++){
       for(var y = 0; y < n; y++){
@@ -260,26 +268,19 @@ function Game(){
   }
 
   this.createMap = function(nO){
-    n = 9//nO % 2 == 0 ? nO-1 : n //always odd
-
+    n = 11
     tileWidth = (worldSize*2)/n
 
-    // for(var i = 0; i < n*n; i++){
-    //   if(i%n != n/2 && i/n != n/2 && i%n != 0 && i%n != n-1 && i/n != 0 && i/n != n-1)
-    //     map[i] = this.getRandomInt(0, 100) < 30 ? this.getRandomInt(1, 1) : 0
-    //   else
-    //     map[i] = 0
-    // }
-
+    //TODO: Layers, add extra dimension
     //11x11
     map = [[0, 0, 2, 2, 2, 0, 0, 0, 0, 0, 0],
            [0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 0],
-           [0, 1, 1, 0, 2, 0, 2, 0, 0, 1, 0],
+           [0, 1, 5, 0, 2, 0, 2, 0, 0, 1, 0],
            [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
            [0, 1, 2, 1, 1, 0, 1, 1, 1, 1, 0],
            [0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0],
-           [0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0],
-           [0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0],
+           [0, 1, 0, 1, 1, 0, 1, 1, 4, 1, 0],
+           [0, 1, 0, 0, 1, 0, 3, 1, 1, 1, 0],
            [0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0],
            [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0],
            [0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0]]
@@ -292,6 +293,10 @@ function Game(){
     return map
   }
 
+  this.getWorldData = function(){
+    return {worldSize: worldSize, n: n, tileWidth, tileWidth, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight}
+  }
+
   this.getN = function(){
     return n
   }
@@ -302,10 +307,12 @@ function Game(){
     var gridPos = new CANNON.Vec3((x-(n/2))*tileWidth, 0, (y-(n/2))*tileWidth)
 
     if(tile){
+      //None
       if(tile == 0){
         return
       }
 
+      //Solid
       if(tile == 1){
         var size = tileWidth
         var halfExtents = new CANNON.Vec3(size/2, size/2, size/2)
@@ -323,6 +330,7 @@ function Game(){
         this.addPhysicsBody(boxBody)
       }
 
+      //Overhead
       if(tile == 2){
         var size = new CANNON.Vec3(tileWidth, tileWidth/4, tileWidth)
         var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
@@ -339,7 +347,40 @@ function Game(){
 
         this.addPhysicsBody(boxBody)
       }
+
+      //Slope 3-6
+      if(tile >= 3 && tile <= 6){
+        var dir = tile-3
+        var rot = (Math.PI/2)*dir
+        var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
+        var slopeBody = new CANNON.Body({mass: 0})
+        slopeBody.addShape(slopeShape)
+        slopeBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+        slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
+        this.addPhysicsBody(slopeBody)
+      }
     }
+  }
+
+  this.createSlope = function(width, height){
+    var y2 = height/2
+    var x2 = width/2
+    var verts = [ new CANNON.Vec3(x2, -y2, -x2),
+                  new CANNON.Vec3(-x2, -y2, -x2),
+                  new CANNON.Vec3(-x2, -y2, x2),
+                  new CANNON.Vec3(x2, -y2, x2),
+                  new CANNON.Vec3(x2, y2, x2),
+                  new CANNON.Vec3(-x2, y2, x2)]
+    var faces = [ [0, 5, 4],
+                  [0, 1, 5],
+                  [1, 0, 2],
+                  [3, 2, 0],
+                  [0, 4, 3],
+                  [1, 2, 5],
+                  [3, 4, 5],
+                  [3, 5, 2]]
+    // return new CANNON.ConvexPolyhedron(verts, faces)
+    return [verts, faces]
   }
 
   this.createHouse = function(num, gridTile){
@@ -491,14 +532,15 @@ var Player = function(id, body) {
   body.addEventListener("collide", function(e){
     var contact = e.contact;
 
-    if(contact.bi.id == body.id)  // bi is the player body, flip the contact normal
-    contact.ni.negate(contactNormal);
-    else
-    contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
-
+    if(contact.bi.id == body.id){  // bi is the player body, flip the contact normal
+      contact.ni.negate(contactNormal);
+    }else{
+      contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
+    }
     // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-    if(contactNormal.dot(upAxis) > 0.8) // Use a "good" threshold value between 0 and 1 here!
-    canJump = true;
+    if(contactNormal.dot(upAxis) > 0){ // Use a "good" threshold value between 0 and 1 here!
+      canJump = true;
+    }
   })
 
   this.getId = function(){

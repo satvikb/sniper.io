@@ -191,17 +191,20 @@ function updatePhysics(){
 }
 
 var cw = {} // Cannon World
-var map = []
+var map;
 var n;
-var models = {}
-var worldSize = 25 //HALF EXTENTS
+// var models = {}
+var worldSize;
 var tileWidth;
+var boundaryThickness;
+var boundaryHeight;
+
+var slopeData;
 
 var stage = new THREE.Geometry()
 
 function createStage(){
-  var boundaryThickness = 1
-  var boundaryHeight = 5
+
   var boundarySize = new CANNON.Vec3(worldSize*2/*-(boundaryThickness)*/, boundaryHeight, boundaryThickness)
 
   var boundaryMeshGeo = new THREE.Geometry()
@@ -245,8 +248,9 @@ function createStage(){
       break;
     }
 
-    boundaryBody.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
-    boundaryMesh.position.set(xChange-(tileWidth/2), 0, zChange-(tileWidth/2))
+    boundaryBody.position.set(xChange-(tileWidth/2), boundaryHeight/2, zChange-(tileWidth/2))
+    boundaryMesh.position.set(xChange-(tileWidth/2), boundaryHeight/2, zChange-(tileWidth/2))
+
     boundaryMesh.castShadow = false;
 
     boundaryMesh.updateMatrix()
@@ -255,7 +259,9 @@ function createStage(){
   }
   scene.add(new THREE.Mesh(boundaryMeshGeo, material))
 
-  loadModels()
+  // loadModels()
+
+  slopeData = this.createSlope(tileWidth, tileWidth)
 
   for(var x = 0; x < n; x++){
     for(var y = 0; y < n; y++){
@@ -310,19 +316,19 @@ function createStage(){
   }
 }
 
-function loadModels(){
-
-  var numModels = 1
-  for(var m = 0; m < numModels; m++){
-    var request = new XMLHttpRequest();
-    request.open('GET', '/assets/models/house'+m+'.json', false);  // `false` makes the request synchronous
-    request.send(null);
-
-    if (request.status === 200) {
-      models[m] = request.responseText;
-    }
-  }
-}
+// function loadModels(){
+//
+//   var numModels = 1
+//   for(var m = 0; m < numModels; m++){
+//     var request = new XMLHttpRequest();
+//     request.open('GET', '/assets/models/house'+m+'.json', false);  // `false` makes the request synchronous
+//     request.send(null);
+//
+//     if (request.status === 200) {
+//       models[m] = request.responseText;
+//     }
+//   }
+// }
 
 var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
 
@@ -373,80 +379,136 @@ this.createTile = function(x, y){
 
       this.addPhysicsBody(boxBody)
     }
+
+    //Slope 3-6
+    if(tile >= 3 && tile <= 6){
+      var dir = tile-3
+      var rot = (Math.PI/2)*dir
+      var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
+      var slopeBody = new CANNON.Body({mass: 0})
+      slopeBody.addShape(slopeShape)
+      slopeBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
+      this.addPhysicsBody(slopeBody)
+
+      var slopeGeo = this.createSlopeGeo(slopeData[0], slopeData[1])
+      slopeGeo.applyMatrix( new THREE.Matrix4().makeRotationY( rot ) );
+      var mesh = new THREE.Mesh(slopeGeo, houseMaterial)
+      mesh.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+
+      mesh.updateMatrix()
+      stage.merge(mesh.geometry, mesh.matrix)
+    }
   }
 }
 
-function createHouse(num, gridTile){
-
-  var response = models[num]
-  // Parse JSON string into object
-  var json = JSON.parse(response)
-  var objs = json["objs"];
-  var metadata = json["metadata"]
-  var height = metadata[0]["totalHeight"]
-  var width = metadata[0]["totalWidth"]
-
-  // var newScale = tileWidth/width
-  var gridPos = new CANNON.Vec3((gridTile%n-(n/2))*tileWidth, 0, (gridTile/n-(n/2))*tileWidth)
-
-
-  function vectorFromJSON(jsonVector){
-    return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
-  }
-
-  function quatFromJSON(jsonVector){
-    return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
-  }
-
-  function divideVector(vec, by){
-    return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
-  }
-
-  //  console.log("NS: "+newScale)
-  var house = new THREE.Geometry()
-
-  for(var i = 0; i < objs.length; i++){
-    var obj = objs[i];
-    var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
-    var scale = vectorFromJSON(obj["scale"])
-    var rot = quatFromJSON(obj["rot"])
-
-    // scale.x = scale.x*newScale
-    // scale.y = scale.y*newScale
-    // scale.z = scale.z*newScale
-    //
-    // pos.x = pos.x*newScale
-    // pos.y = pos.y*newScale
-    // pos.z = pos.z*newScale
-
-    var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
-    var boxShape = new CANNON.Box(halfExtents)
-    var boxGeometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z);
-
-    var boxBody = new CANNON.Body({mass: 0})
-    boxBody.addShape(boxShape)
-
-    boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
-    var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
-    boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
-
-    // boxMesh.receiveShadow = true
-    // boxMesh.castShadow = true
-    // boxMesh.shadowBias = -0.0008
-
-    var heightOffset = (height/2)//*newScale
-    boxMesh.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
-    boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
-    // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
-
-    boxMesh.updateMatrix()
-    house.merge(boxMesh.geometry, boxMesh.matrix)
-    addPhysicsBody(boxBody)
-  }
-
-  var houseMesh = new THREE.Mesh(house, houseMaterial)
-  scene.add(houseMesh)
+function createSlope(width, height){
+  var y2 = height/2
+  var x2 = width/2
+  var verts = [ new CANNON.Vec3(x2, -y2, -x2),
+                new CANNON.Vec3(-x2, -y2, -x2),
+                new CANNON.Vec3(-x2, -y2, x2),
+                new CANNON.Vec3(x2, -y2, x2),
+                new CANNON.Vec3(x2, y2, x2),
+                new CANNON.Vec3(-x2, y2, x2)]
+  var faces = [ [0, 5, 4],
+                [0, 1, 5],
+                [1, 0, 2],
+                [3, 2, 0],
+                [0, 4, 3],
+                [1, 2, 5],
+                [3, 4, 5],
+                [3, 5, 2]]
+  // return new CANNON.ConvexPolyhedron(verts, faces)
+  return [verts, faces]
 }
+
+function createSlopeGeo(verts, faces){
+  var slope = new THREE.Geometry()
+
+  for(var i = 0; i < verts.length; i++){
+    slope.vertices.push(new THREE.Vector3(verts[i].x, verts[i].y, verts[i].z))
+  }
+
+  for(var i = 0; i < faces.length; i++){
+    slope.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]))
+  }
+  slope.computeFaceNormals()
+
+  return slope
+}
+
+// function createHouse(num, gridTile){
+//
+//   var response = models[num]
+//   // Parse JSON string into object
+//   var json = JSON.parse(response)
+//   var objs = json["objs"];
+//   var metadata = json["metadata"]
+//   var height = metadata[0]["totalHeight"]
+//   var width = metadata[0]["totalWidth"]
+//
+//   // var newScale = tileWidth/width
+//   var gridPos = new CANNON.Vec3((gridTile%n-(n/2))*tileWidth, 0, (gridTile/n-(n/2))*tileWidth)
+//
+//
+//   function vectorFromJSON(jsonVector){
+//     return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
+//   }
+//
+//   function quatFromJSON(jsonVector){
+//     return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
+//   }
+//
+//   function divideVector(vec, by){
+//     return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
+//   }
+//
+//   //  console.log("NS: "+newScale)
+//   var house = new THREE.Geometry()
+//
+//   for(var i = 0; i < objs.length; i++){
+//     var obj = objs[i];
+//     var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
+//     var scale = vectorFromJSON(obj["scale"])
+//     var rot = quatFromJSON(obj["rot"])
+//
+//     // scale.x = scale.x*newScale
+//     // scale.y = scale.y*newScale
+//     // scale.z = scale.z*newScale
+//     //
+//     // pos.x = pos.x*newScale
+//     // pos.y = pos.y*newScale
+//     // pos.z = pos.z*newScale
+//
+//     var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
+//     var boxShape = new CANNON.Box(halfExtents)
+//     var boxGeometry = new THREE.BoxGeometry(scale.x, scale.y, scale.z);
+//
+//     var boxBody = new CANNON.Body({mass: 0})
+//     boxBody.addShape(boxShape)
+//
+//     boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w) //Match rotaion of geometry
+//     var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
+//     boxMesh.setRotationFromQuaternion(new THREE.Quaternion(rot.x, rot.y, rot.z, rot.w))
+//
+//     // boxMesh.receiveShadow = true
+//     // boxMesh.castShadow = true
+//     // boxMesh.shadowBias = -0.0008
+//
+//     var heightOffset = (height/2)//*newScale
+//     boxMesh.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+//     boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+//     // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+//
+//     boxMesh.updateMatrix()
+//     house.merge(boxMesh.geometry, boxMesh.matrix)
+//     addPhysicsBody(boxBody)
+//   }
+//
+//   var houseMesh = new THREE.Mesh(house, houseMaterial)
+//   scene.add(houseMesh)
+// }
 
 function Bitmap(src, width, height) {
   this.image = new Image();
@@ -513,7 +575,8 @@ function init() {
 
 
   var size = new CANNON.Vec3(radius/2, radius, radius/2)
-  var sphereShape = new CANNON.Box(size)// new CANNON.Sphere(radius)//
+  // var sphereShape = new CANNON.Box(size)// new CANNON.Sphere(radius)//
+  var sphereShape = new CANNON.Sphere(radius)
   var sphereBody = new CANNON.Body({ mass: mass,
                                angularFactor: new CANNON.Vec3(0, 1, 0)
                              });
@@ -526,6 +589,7 @@ function init() {
   localPlayer = new RemotePlayer(sphereBody, null)
 
   controls = new PointerLockControls( camera , sphereBody );
+
   controls.oldPos = new THREE.Vector3().copy(controls.getObject().position)
   scene.add( controls.getObject() );
 
@@ -570,9 +634,14 @@ function setSocketEventHandlers(){
 }
 
 function onMapData(data){
+  worldSize = data.world.worldSize
+  n = data.world.n
+  tileWidth = data.world.tileWidth
+  boundaryHeight = data.world.boundaryHeight
+  boundaryThickness = data.world.boundaryThickness
+
   map = data.map
-  n = data.n
-  tileWidth = (worldSize*2)/n
+
   initMap()
 }
 
@@ -662,7 +731,7 @@ function drawOverlay() {
   var y = 40;
   context.font = "20pt Calibri";
   context.fillStyle = "#0000ff"; // text color
-  context.fillText("sniper.io ", x, y);
+  context.fillText("alpha v0.1", x, y);
 
   var weaponCanvas = document.getElementById('weaponCanvas')
   var weaponContext = weaponCanvas.getContext('2d')
@@ -734,14 +803,15 @@ function onSocketDisconnect() {
 };
 
 var mass = 50, radius = 0.8, playerHeight = 2;
-var ballGeometry = new THREE.BoxGeometry(radius, radius*2, radius);
+// var ballGeometry = new THREE.BoxGeometry(radius, radius*2, radius);
+var ballGeometry = new THREE.SphereGeometry(radius);
 
 function onNewPlayer(data) {
   // console.log("New player connected: "+data.id);
 
-
   var size = new CANNON.Vec3(radius/2, radius, radius/2)
-  var bodyShape = new CANNON.Box(size)//new CANNON.Sphere(radius)
+  // var bodyShape = new CANNON.Box(size)//new CANNON.Sphere(radius)
+  var bodyShape = new CANNON.Sphere(radius)
   var body = new CANNON.Body({ mass: mass,
                                angularFactor: new CANNON.Vec3(0, 1, 0)
                              });
@@ -838,6 +908,7 @@ function getRemotePlayerFromObject(obj){
   return false
 }
 
+//TODO Do hit test on server side
 window.addEventListener("click",function(e){
   if(controls.enabled == true){
     raycaster.set(camera.getWorldPosition(), camera.getWorldDirection())
