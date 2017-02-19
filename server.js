@@ -61,8 +61,8 @@ function onNewPlayer(data) {
   // var bodyShape = new CANNON.Box(size)
   var bodyShape = new CANNON.Sphere(radius)
   var body = new CANNON.Body({ mass: mass,
-                               angularFactor: new CANNON.Vec3(0, 1, 0)
-                             });
+    angularFactor: new CANNON.Vec3(0, 1, 0)
+  });
   body.linearDamping = 0.9;
   body.position.set(1, 3, 0)
 
@@ -192,13 +192,13 @@ function Game(){
     this.createStage()
   };
 
-  var worldSize = 15
+  var worldSize = 35
   var boundaryWhitespace = 10
   var boundaryThickness = 1
   var boundaryHeight = 20
 
   var tileWidth;
-
+  var tileHeight;
 
   var slopeData;
 
@@ -244,203 +244,221 @@ function Game(){
       this.addPhysicsBody(boundaryBody)
     }
 
-    this.loadModels()
+    // this.loadModels()
 
-    slopeData = this.createSlope(tileWidth, tileWidth)
+    slopeData = this.createSlope(tileWidth, tileHeight)
 
-    for(var x = n-1; x >= 0; x--){
-      for(var y = 0; y < n; y++){
-      //Create physics bodies
-      // if(map[i] > 0){
-      //   this.createHouse(map[i]-1, i)
-      // }
-        if(map[x][y] > 0){
-          this.createTile(x,y)
+    for(var l = 0; l < map.length; l++){
+      for(var x = 0; x < n; x++){
+        for(var y = 0; y < n; y++){
+          //Create physics bodies
+          // if(map[i] > 0){
+          //   this.createHouse(map[i]-1, i)
+          // }
+          if(map[l][x][y] > 0){
+            this.createTile(x,y,l)
+          }
         }
       }
     }
   }
 
-  this.loadModels = function(){
-    var numModels = 1
-    for(var m = 0; m < numModels; m++){
-      models[m] = fs.readFileSync("public/assets/models/house"+m+".json")
-    }
-  }
+  // this.loadModels = function(){
+  //   var numModels = 1
+  //   for(var m = 0; m < numModels; m++){
+  //     models[m] = fs.readFileSync("public/assets/models/house"+m+".json")
+  //   }
+  // }
 
   this.createMap = function(nO){
     n = 11
     tileWidth = (worldSize*2)/n
+    tileHeight = tileWidth
 
     //TODO: Layers, add extra dimension
     //11x11
-
     //    (-n/2, -n/2) Q32             (n/2, -n/2)  Q1
-    map = [[1, 5, 0, 0, 0, 0, 3, 1, 1, 2, 2],
-           [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-           [0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1],
-           [6, 0, 0, 0, 0, 0, 0, 4, 0, 0, 1],
-           [1, 0, 0, 0, 0, 0, 0, 5, 0, 0, 2],
-           [1, 0, 0, 0, 0, 0, 0, 6, 0, 3, 2],
-           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
-           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-           [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4],
-           [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-           [1, 5, 0, 3, 1, 1, 2, 2, 5, 0, 0]]
-    //     (-n/2, n/2) Q3               (n/2, n/2) Q4
 
-    console.log("created map ("+n+")")
+    map = [[[1, 5, 0, 0, 0, 0, 3, 1, 1, 2, 2],
+          [4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2],
+          [0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 1],
+          [6, 0, 0, 2, 2, 2, 2, 2, 0, 0, 1],
+          [1, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2],
+          [1, 0, 0, 2, 0, 1, 0, 2, 0, 3, 2],
+          [2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2],
+          [2, 0, 0, 2, 2, 2, 2, 2, 0, 0, 1],
+          [1, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4],
+          [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [1, 5, 0, 3, 1, 1, 2, 2, 5, 0, 0]],
 
-  }
+          [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6],
+          [0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 1],
+          [0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 4],
+          [0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0],
+          [0, 3, 2, 2, 2, 2, 2, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
 
-  this.getMap = function(){
-    return map
-  }
+          ]
+  //     (-n/2, n/2) Q3               (n/2, n/2) Q4
 
-  this.getWorldData = function(){
-    return {worldSize: worldSize, n: n, tileWidth, tileWidth, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight, boundaryWhitespace: boundaryWhitespace}
-  }
+  console.log("created map ("+n+")")
 
-  this.getN = function(){
-    return n
-  }
+}
 
-  this.createTile = function(x, y, layer){
-    var tile = map[x][y]
-    // var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
-    var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), 0, (y-(n/2))*tileWidth)
+this.getMap = function(){
+  return map
+}
 
-    if(tile){
-      //None
-      if(tile == 0){
-        return
-      }
+this.getWorldData = function(){
+  return {worldSize: worldSize, n: n, tileWidth, tileWidth, tileHeight: tileHeight, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight, boundaryWhitespace: boundaryWhitespace}
+}
 
-      //Solid
-      if(tile == 1){
-        var size = tileWidth
-        var halfExtents = new CANNON.Vec3(size/2, size/2, size/2)
-        var boxShape = new CANNON.Box(halfExtents)
+this.getN = function(){
+  return n
+}
 
-        var boxBody = new CANNON.Body({mass: 0})
-        boxBody.addShape(boxShape)
+this.createTile = function(x, y, l){
+  var tile = map[l][x][y]
+  // var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
+  var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), l*tileHeight, (y-(n/2))*tileWidth)
 
-        // var heightOffset = (height/2)//*newScale
-        // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
-        // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
-        // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
-        boxBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
-
-        this.addPhysicsBody(boxBody)
-      }
-
-      //Overhead
-      if(tile == 2){
-        var size = new CANNON.Vec3(tileWidth, tileWidth/4, tileWidth)
-        var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
-        var boxShape = new CANNON.Box(halfExtents)
-
-        var boxBody = new CANNON.Body({mass: 0})
-        boxBody.addShape(boxShape)
-
-        // var heightOffset = (height/2)//*newScale
-        // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
-        // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
-        // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
-        boxBody.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
-
-        this.addPhysicsBody(boxBody)
-      }
-
-      //Slope 3-6
-      if(tile >= 3 && tile <= 6){
-        var dir = tile-3
-        var rot = (Math.PI/2)*dir
-        var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
-        var slopeBody = new CANNON.Body({mass: 0})
-        slopeBody.addShape(slopeShape)
-        slopeBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
-        slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
-        this.addPhysicsBody(slopeBody)
-      }
-    }
-  }
-
-  this.createSlope = function(width, height){
-    var y2 = height/2
-    var x2 = width/2
-    var verts = [ new CANNON.Vec3(x2, -y2, -x2),
-                  new CANNON.Vec3(-x2, -y2, -x2),
-                  new CANNON.Vec3(-x2, -y2, x2),
-                  new CANNON.Vec3(x2, -y2, x2),
-                  new CANNON.Vec3(x2, y2, x2),
-                  new CANNON.Vec3(-x2, y2, x2)]
-    var faces = [ [0, 5, 4],
-                  [0, 1, 5],
-                  [1, 0, 2],
-                  [3, 2, 0],
-                  [0, 4, 3],
-                  [1, 2, 5],
-                  [3, 4, 5],
-                  [3, 5, 2]]
-    // return new CANNON.ConvexPolyhedron(verts, faces)
-    return [verts, faces]
-  }
-
-  this.createHouse = function(num, gridTile){
-
-    var response = models[num]
-    // Parse JSON string into object
-    var json = JSON.parse(response)
-    var objs = json["objs"];
-    var metadata = json["metadata"]
-    var height = metadata[0]["totalHeight"]
-    var width = metadata[0]["totalWidth"]
-
-    // var newScale = tileWidth/width
-    var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
-
-    function vectorFromJSON(jsonVector){
-      return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
+  if(tile){
+    //None
+    if(tile == 0){
+      return
     }
 
-    function quatFromJSON(jsonVector){
-      return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
-    }
-
-    function divideVector(vec, by){
-      return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
-    }
-
-    var house = new THREE.Geometry()
-
-    for(var i = 0; i < objs.length; i++){
-      var obj = objs[i];
-      var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
-      var scale = vectorFromJSON(obj["scale"])
-      var rot = quatFromJSON(obj["rot"])
-
-      // scale.x = scale.x*newScale
-      // scale.y = scale.y*newScale
-      // scale.z = scale.z*newScale
-      // pos.x = pos.x*newScale
-      // pos.y = pos.y*newScale
-      // pos.z = pos.z*newScale
-
-      var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
+    //Solid
+    if(tile == 1){
+      var tWidth = tileWidth
+      var tHeight = tileHeight
+      var halfExtents = new CANNON.Vec3(tWidth/2, tHeight/2, tWidth/2)
       var boxShape = new CANNON.Box(halfExtents)
 
       var boxBody = new CANNON.Body({mass: 0})
       boxBody.addShape(boxShape)
 
-      var heightOffset = (height/2)//*newScale
-      boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+      // var heightOffset = (height/2)//*newScale
+      // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
       // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
-      boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+      // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
 
       this.addPhysicsBody(boxBody)
     }
+
+    //Overhead
+    if(tile == 2){
+      var size = new CANNON.Vec3(tileWidth, tileHeight/8, tileWidth)
+      var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
+      var boxShape = new CANNON.Box(halfExtents)
+
+      var boxBody = new CANNON.Body({mass: 0})
+      boxBody.addShape(boxShape)
+
+      // var heightOffset = (height/2)//*newScale
+      // boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+      // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+      // boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
+
+      this.addPhysicsBody(boxBody)
+    }
+
+    //Slope 3-6
+    if(tile >= 3 && tile <= 6){
+      var dir = tile-3
+      var rot = (Math.PI/2)*dir
+      var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
+      var slopeBody = new CANNON.Body({mass: 0})
+      slopeBody.addShape(slopeShape)
+      slopeBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
+      slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
+      this.addPhysicsBody(slopeBody)
+    }
   }
+}
+
+this.createSlope = function(width, height){
+  var y2 = height/2
+  var x2 = width/2
+  var verts = [ new CANNON.Vec3(x2, -y2, -x2),
+    new CANNON.Vec3(-x2, -y2, -x2),
+    new CANNON.Vec3(-x2, -y2, x2),
+    new CANNON.Vec3(x2, -y2, x2),
+    new CANNON.Vec3(x2, y2, x2),
+    new CANNON.Vec3(-x2, y2, x2)]
+    var faces = [ [0, 5, 4],
+    [0, 1, 5],
+    [1, 0, 2],
+    [3, 2, 0],
+    [0, 4, 3],
+    [1, 2, 5],
+    [3, 4, 5],
+    [3, 5, 2]]
+    // return new CANNON.ConvexPolyhedron(verts, faces)
+    return [verts, faces]
+  }
+
+  // this.createHouse = function(num, gridTile){
+  //
+  //   var response = models[num]
+  //   // Parse JSON string into object
+  //   var json = JSON.parse(response)
+  //   var objs = json["objs"];
+  //   var metadata = json["metadata"]
+  //   var height = metadata[0]["totalHeight"]
+  //   var width = metadata[0]["totalWidth"]
+  //
+  //   // var newScale = tileWidth/width
+  //   var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
+  //
+  //   function vectorFromJSON(jsonVector){
+  //     return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
+  //   }
+  //
+  //   function quatFromJSON(jsonVector){
+  //     return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
+  //   }
+  //
+  //   function divideVector(vec, by){
+  //     return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
+  //   }
+  //
+  //   var house = new THREE.Geometry()
+  //
+  //   for(var i = 0; i < objs.length; i++){
+  //     var obj = objs[i];
+  //     var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
+  //     var scale = vectorFromJSON(obj["scale"])
+  //     var rot = quatFromJSON(obj["rot"])
+  //
+  //     // scale.x = scale.x*newScale
+  //     // scale.y = scale.y*newScale
+  //     // scale.z = scale.z*newScale
+  //     // pos.x = pos.x*newScale
+  //     // pos.y = pos.y*newScale
+  //     // pos.z = pos.z*newScale
+  //
+  //     var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
+  //     var boxShape = new CANNON.Box(halfExtents)
+  //
+  //     var boxBody = new CANNON.Body({mass: 0})
+  //     boxBody.addShape(boxShape)
+  //
+  //     var heightOffset = (height/2)//*newScale
+  //     boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
+  //     // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
+  //     boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
+  //
+  //     this.addPhysicsBody(boxBody)
+  //   }
+  // }
 
   this.addPhysicsBody = function(body){
     cw.world.addBody(body)
@@ -543,7 +561,7 @@ var Player = function(id, body) {
     }
     // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
     // if(contactNormal.dot(upAxis) > 0){ // Use a "good" threshold value between 0 and 1 here!
-      canJump = true;
+    canJump = true;
     // }
   })
 
