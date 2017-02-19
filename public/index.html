@@ -197,6 +197,7 @@ var n;
 // var models = {}
 var worldSize;
 var tileWidth;
+var tileHeight;
 var boundaryThickness;
 var boundaryHeight;
 var boundaryWhitespace;
@@ -252,8 +253,8 @@ function createStage(){
 
     var lineGeo = new THREE.Geometry()
 
-    var v1 = new THREE.Vector3(-worldSize-boundaryWhitespace, 0.1, 0)
-    var v2 = new THREE.Vector3(worldSize+boundaryWhitespace, 0.1, 0)
+    var v1 = new THREE.Vector3(-worldSize-boundaryWhitespace, 0, 0)
+    var v2 = new THREE.Vector3(worldSize+boundaryWhitespace, 0, 0)
 
     lineGeo.vertices.push(v1)
     lineGeo.vertices.push(v2)
@@ -265,13 +266,16 @@ function createStage(){
     scene.add(line)
   }
 
-  slopeData = this.createSlope(tileWidth, tileWidth)
+  slopeData = this.createSlope(tileWidth, tileHeight)
 
-  for(var x = 0; x < n; x++){
-    for(var y = 0; y < n; y++){
+  console.log("Layers: "+map.length)
+  for(var l = 0; l < map.length; l++){
+    for(var x = 0; x < n; x++){
+      for(var y = 0; y < n; y++){
 
-      if(map[x][y] > 0){
-        this.createTile(x,y)
+        if(map[l][x][y] > 0){
+          this.createTile(x,y,l)
+        }
       }
     }
   }
@@ -322,9 +326,9 @@ function createStage(){
 
 var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
 
-this.createTile = function(x, y){
-  var tile = map[x][y]
-  var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), 0, (y-(n/2))*tileWidth)
+this.createTile = function(x, y, l){
+  var tile = map[l][x][y]
+  var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), l*tileHeight, (y-(n/2))*tileWidth)
 
   if(tile){
     if(tile == 0){
@@ -332,18 +336,20 @@ this.createTile = function(x, y){
     }
 
     if(tile == 1){
-      var size = tileWidth
-      var halfExtents = new CANNON.Vec3(size/2, size/2, size/2)
+      var tWidth = tileWidth
+      var tHeight = tileHeight
+
+      var halfExtents = new CANNON.Vec3(tWidth/2, tHeight/2, tWidth/2)
       var boxShape = new CANNON.Box(halfExtents)
 
       var boxBody = new CANNON.Body({mass: 0})
       boxBody.addShape(boxShape)
-      boxBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
 
 
-      var boxGeometry = new THREE.BoxGeometry(size, size, size);
+      var boxGeometry = new THREE.BoxGeometry(tWidth, tHeight, tWidth);
       var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
-      boxMesh.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
       boxMesh.updateMatrix()
       stage.merge(boxMesh.geometry, boxMesh.matrix)
 
@@ -351,17 +357,17 @@ this.createTile = function(x, y){
     }
 
     if(tile == 2){
-      var size = new CANNON.Vec3(tileWidth, tileWidth/4, tileWidth)
+      var size = new CANNON.Vec3(tileWidth, tileHeight/8, tileWidth)
       var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
       var boxShape = new CANNON.Box(halfExtents)
 
       var boxBody = new CANNON.Body({mass: 0})
       boxBody.addShape(boxShape)
-      boxBody.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
+      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
 
       var boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
       var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
-      boxMesh.position.set(gridPos.x, gridPos.y+(tileWidth-size.y/2), gridPos.z)
+      boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
       boxMesh.updateMatrix()
       stage.merge(boxMesh.geometry, boxMesh.matrix)
 
@@ -375,14 +381,14 @@ this.createTile = function(x, y){
       var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
       var slopeBody = new CANNON.Body({mass: 0})
       slopeBody.addShape(slopeShape)
-      slopeBody.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      slopeBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
       slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
       this.addPhysicsBody(slopeBody)
 
       var slopeGeo = this.createSlopeGeo(slopeData[0], slopeData[1])
       slopeGeo.applyMatrix( new THREE.Matrix4().makeRotationY( rot ) );
       var mesh = new THREE.Mesh(slopeGeo, houseMaterial)
-      mesh.position.set(gridPos.x, gridPos.y+(tileWidth/2), gridPos.z)
+      mesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
 
       mesh.updateMatrix()
       stage.merge(mesh.geometry, mesh.matrix)
@@ -555,6 +561,7 @@ function onMapData(data){
   worldSize = data.world.worldSize
   n = data.world.n
   tileWidth = data.world.tileWidth
+  tileHeight = data.world.tileHeight
   boundaryHeight = data.world.boundaryHeight
   boundaryThickness = data.world.boundaryThickness
   boundaryWhitespace = data.world.boundaryWhitespace
@@ -649,6 +656,8 @@ function createOverlay(mainCanvas){
 
 // var innerWidth;
 // var innerHeight;
+var oldWidth = 0
+var oldHeight = 0
 
 function drawOverlay() {
   var context = overlay.getContext('2d');
@@ -659,11 +668,18 @@ function drawOverlay() {
   context.fillStyle = "#0000ff"; // text color
   context.fillText("alpha v0.1", x, y);
 
+  if(window.innerWidth != oldWidth || window.innerHeight != oldHeight){
+    weaponOverlay.width = 0.234375 * window.innerWidth
+    weaponOverlay.height = 0.1875 * window.innerHeight
+    weaponContext.imageSmoothingEnabled = false
+    weaponContext.transform(0.65,0.5,0,1,85,0);
 
-  weaponOverlay.width = 0.234375 * window.innerWidth
-  weaponOverlay.height = 0.1875 * window.innerHeight
-  weaponContext.imageSmoothingEnabled = false
-  weaponContext.transform(0.65,0.5,0,1,85,0);
+    scopingOverlay.width = window.innerWidth
+    scopingOverlay.height = window.innerHeight
+
+    oldWidth = window.innerWidth
+    oldHeight = window.innerHeight
+  }
 
   weaponContext.clearRect(0, 0, weaponOverlay.width, weaponOverlay.height);
   var scale = new THREE.Vector2(weaponOverlay.width/weapon.width, weaponOverlay.height/weapon.height)
@@ -671,8 +687,6 @@ function drawOverlay() {
   var top = overlay.height * 0.6;
   weaponContext.drawImage(weapon.image, 0, 0, weapon.width*scale.x, weapon.height * scale.y);
 
-  scopingOverlay.width = window.innerWidth
-  scopingOverlay.height = window.innerHeight
 
   var scopingContextWidth = scopingOverlay.width
   var scopingContextHeight = scopingOverlay.height
