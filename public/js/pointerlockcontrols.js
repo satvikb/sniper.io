@@ -1,7 +1,3 @@
-/**
- * @author mrdoob / http://mrdoob.com/
- * @author schteppe / https://github.com/schteppe
- */
  var PointerLockControls = function ( camera, cannonBody ) {
 
     var id;
@@ -10,6 +6,8 @@
     var velocityFactor = 5;
     var jumpVelocity = 10;
     var scope = this;
+
+    // camera.position.set(0, 0, 0)
 
     var pitchObject = new THREE.Object3D();
     pitchObject.add( camera );
@@ -50,7 +48,7 @@
             contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
 
         // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-        // if(contactNormal.dot(upAxis) > 0) // Use a "good" threshold value between 0 and 1 here!
+        if(contactNormal.dot(upAxis) >= 0) // Use a "good" threshold value between 0 and 1 here!
             canJump = true;
     });
 
@@ -59,7 +57,7 @@
     var PI_2 = Math.PI / 2;
 
     var onMouseMove = function ( event ) {
-
+      // console.log("mouse move "+event.movementX+" "+event.movementY+" "+scope.enabled)
         if ( scope.enabled === false ) return;
 
         var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
@@ -103,15 +101,14 @@
                 break;
         }
 
-        if(event.shiftKey == true){
-          scoping = true
-          currentSensitivity = scopingSensitivity
-          scopingOverlay.style.display = ''
-          camera.fov = 25
-          camera.updateProjectionMatrix()
+
+        if(controls.enabled){
+          if(event.shiftKey == true){
+            setScoping(true)
+          }
+        }else{
+          setScoping(false)
         }
-
-
     };
 
     var onKeyUp = function ( event ) {
@@ -143,17 +140,22 @@
 
         }
 
-        if(event.shiftKey == false){
-          scoping = false
-          currentSensitivity = scopingSensitivity
-
-          scopingOverlay.style.display = 'none'
-          camera.fov = 75
-          camera.updateProjectionMatrix()
-          // console.log("no shift" +scoping)
+        if(controls.enabled){
+          if(event.shiftKey == false){
+            setScoping(false)
+          }
+        }else{
+          setScoping(false)
         }
-
     };
+
+    var setScoping = function(isScoping){
+      scoping = isScoping
+      currentSensitivity = isScoping == true ? scopingSensitivity : defaultSensitivity
+      scopingOverlay.style.display = isScoping == true ? '' : 'none'
+      camera.fov = isScoping == true ? 25 : 75
+      camera.updateProjectionMatrix()
+    }
 
     document.addEventListener( 'mousemove', onMouseMove, false );
     document.addEventListener( 'keydown', onKeyDown, false );
@@ -234,6 +236,7 @@
 
     this.inputs = function(){
 
+      //TODO Send mouse movement not actual rotation
       var inputs = {
         left: moveLeft,
         right: moveRight,
