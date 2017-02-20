@@ -16,6 +16,8 @@ var game;
 
 function init() {
   players = [];
+  clients = []; //Includes connections not in game, e.g. in lobby
+
   game = new Game()
 
   setEventHandlers();
@@ -28,19 +30,34 @@ var setEventHandlers = function() {
 };
 
 function onSocketConnection(client) {
-  util.log("New player has connected: "+client.id);
+  util.log("Client has connected: "+client.id);
+
+  clients.push(client.id)
+
+  client.on("joinGame", onJoinGame)
   client.on("disconnect", onClientDisconnect);
   client.on("new player", onNewPlayer);
   client.on("move player", onMovePlayer);
   client.on("hit player", onHitPlayer);
 
-  client.on('mapData', function(){
-    this.emit('mapData', {map: game.getMap(), world: game.getWorldData()})
+  client.on('connectData', function(){
+    this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
   })
 };
 
+function onJoinGame(data){
+  //TODO Pick a server, test for availability, etc.
+  var playerId = data.id
+  var nickname = data.nickname == "" ? "player" : data.nickname
+  nickname.length > 6 ? nickname.substring(0, 6) : nickname
+
+  var gameId = 0
+
+  this.emit('joinGame', {gameId: gameId, nickname: nickname})
+}
+
 function onClientDisconnect() {
-  util.log("Player has disconnected: "+this.id);
+  util.log("Client has disconnected: "+this.id);
 
   var removePlayer = playerById(this.id);
 
@@ -49,8 +66,11 @@ function onClientDisconnect() {
     return;
   };
 
-  game.removePhysicsBody(removePlayer.getBody())
+  game.removePhysicsBody(removePlayer.body)
+
   players.splice(players.indexOf(removePlayer), 1);
+  clients.splice(clients.indexOf(this.id), 1);
+
   this.broadcast.emit("remove player", {id: this.id});
 };
 
@@ -64,25 +84,28 @@ function onNewPlayer(data) {
     angularFactor: new CANNON.Vec3(0, 1, 0)
   });
   body.linearDamping = 0.9;
-  body.position.set(1, 3, 0)
+  body.position.set(0, 6, 0)
 
   body.angularDamping = 0.5
   body.updateMassProperties();
 
-  var newPlayer = new Player(this.id, body);
+  var newPlayer = new Player(this.id, body, data.nickname);
 
-  newPlayer.getBody().addShape(bodyShape);
-  game.addPhysicsBody(newPlayer.getBody())
+  newPlayer.body.addShape(bodyShape);
+  game.addPhysicsBody(newPlayer.body)
 
-  this.broadcast.emit("new player", {id: newPlayer.getId(), pos: newPlayer.position});
+  //Tell all other players about the newbie
+  this.broadcast.emit("new player", {id: newPlayer.id, nickname: data.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z});
 
+  //Tell the new player of all the current players
   var i, existingPlayer;
   for (i = 0; i < players.length; i++) {
     existingPlayer = players[i];
-    this.emit("new player", {id: existingPlayer.getId(), x: existingPlayer.getX(), y: existingPlayer.getY(), z: existingPlayer.getZ()});
+    this.emit("new player", {id: existingPlayer.id, nickname: existingPlayer.nickname, x: existingPlayer.body.position.x, y: existingPlayer.body.y, z: existingPlayer.body.z});
   };
 
   players.push(newPlayer);
+  util.log("Added new player "+this.id+" Total players now: "+players.length)
 };
 
 function onHitPlayer(data){
@@ -94,7 +117,7 @@ function onHitPlayer(data){
 
   // TODO: Affect health here and anything else when hit by a bullet, and give data
 
-  this.broadcast.emit("hit player", {id: hitPlayer.getId()})
+  this.broadcast.emit("hit player", {id: hitPlayer.id})
 }
 
 function onMovePlayer(data) {
@@ -116,10 +139,9 @@ function sendUpdate(){
     var updateData = []
     for(var i = 0; i < players.length; i++){
       var plData = {}
-      plData.id = players[i].getId()
-
-      plData.position = players[i].getPos()
-      plData.quat = players[i].getQuat()
+      plData.id = players[i].id
+      plData.position = players[i].body.position
+      plData.quat = players[i].body.quaternion
       updateData.push(plData)
     }
     return updateData;
@@ -130,7 +152,7 @@ function sendUpdate(){
 function playerById(id) {
   var i;
   for (i = 0; i < players.length; i++) {
-    if (players[i].getId() == id)
+    if (players[i].id == id)
     return players[i];
   };
 
@@ -192,7 +214,7 @@ function Game(){
     this.createStage()
   };
 
-  var worldSize = 35
+  var worldSize = 20
   var boundaryWhitespace = 10
   var boundaryThickness = 1
   var boundaryHeight = 20
@@ -284,7 +306,7 @@ function Game(){
           [0, 0, 0, 6, 0, 0, 0, 6, 0, 0, 1],
           [6, 0, 0, 2, 2, 2, 2, 2, 0, 0, 1],
           [1, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2],
-          [1, 0, 0, 2, 0, 1, 0, 2, 0, 3, 2],
+          [1, 0, 0, 2, 0, 0, 0, 2, 0, 3, 2],
           [2, 0, 0, 2, 0, 0, 0, 2, 0, 0, 2],
           [2, 0, 0, 2, 2, 2, 2, 2, 0, 0, 1],
           [1, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4],
@@ -481,120 +503,91 @@ this.createSlope = function(width, height){
   this.gameInit();
 }
 
-var velocityFactor = 5
-var jumpVelocity = 10
+function Player(id, body, nickname) {
+  var that = this
 
-var Player = function(id, body) {
-  var position = new CANNON.Vec3();
-  var quaternion = new CANNON.Quaternion();
-  var velocity = body.velocity
+  this.velocityFactor = 5
+  this.jumpVelocity = 10
+
+  this.id = id
+  this.nickname = nickname
+  this.body = body
+
+  this.velocity = body.velocity
 
   // var inputVelocity = new CANNON.Vec3();
-  var quat = new THREE.Quaternion();
-  var inputVelocity = new THREE.Vector3();
-  var euler = new THREE.Euler();
+  this.quat = new THREE.Quaternion();
+  this.inputVelocity = new THREE.Vector3();
+  this.euler = new THREE.Euler();
 
-  var canJump = true
+  this.canJump = true
 
   //use sparingly
-  this.setPosition = function(pos){
-    position = pos
-    body.position.set(pos);
-  }
+  // this.setPosition = function(pos){
+  //   position = pos
+  //   body.position.set(pos);
+  // }
 
-  this.updatePosition = function(){
-    position.copy(body.position)
-  }
+  this.contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
+  this.upAxis = new CANNON.Vec3(0,1,0);
 
-  this.move = function(inputs, dt){
-    dt *= 0.1;
-
-    inputVelocity.set(0, 0, 0)
-
-    velocity.x = 0
-    velocity.z = 0
-
-    //left right up down and jump
-    if(inputs.forward){
-      inputVelocity.z = -velocityFactor * dt;
-    }
-
-    if(inputs.backward){
-      inputVelocity.z = velocityFactor * dt;
-    }
-
-    if(inputs.left){
-      inputVelocity.x = -velocityFactor * dt;
-    }
-
-    if(inputs.right){
-      inputVelocity.x = velocityFactor * dt;
-    }
-
-    if(inputs.jump){
-      if(canJump == true){
-        velocity.y = jumpVelocity
-      }
-      canJump = false
-    }
-
-    euler.x = inputs.rotX;
-    euler.y = inputs.rotY;
-    euler.order = "XYZ";
-    quat.setFromEuler(euler);
-    inputVelocity.applyQuaternion(quat);
-
-    velocity.x += inputVelocity.x
-    velocity.z += inputVelocity.z
-  }
-
-  var contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
-  var upAxis = new CANNON.Vec3(0,1,0);
-
-  body.addEventListener("collide", function(e){
+  var collide = function(e){
     var contact = e.contact;
-
     if(contact.bi.id == body.id){  // bi is the player body, flip the contact normal
-      contact.ni.negate(contactNormal);
+      contact.ni.negate(that.contactNormal);
     }else{
-      contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
+      that.contactNormal.copy(contact.ni); // bi is something else. Keep the normal as it is
     }
     // If contactNormal.dot(upAxis) is between 0 and 1, we know that the contact normal is somewhat in the up direction.
-    // if(contactNormal.dot(upAxis) > 0){ // Use a "good" threshold value between 0 and 1 here!
-    canJump = true;
-    // }
-  })
-
-  this.getId = function(){
-    return id
+    if(that.contactNormal.dot(that.upAxis) >= 0){ // Use a "good" threshold value between 0 and 1 here!
+      that.canJump = true;
+    }
   }
 
-  this.getBody = function(){
-    return body
-  }
-
-
-  this.getX = function() {
-    return body.position.x;
-  };
-
-  this.getY = function() {
-    return body.position.y;
-  };
-
-  this.getZ = function(){
-    return body.position.z;
-  };
-
-  this.getPos = function(){
-    this.updatePosition()
-    return position
-  }
-
-  this.getQuat = function(){
-    return body.quaternion
-  }
+  body.addEventListener("collide", collide)
 };
+
+Player.prototype.move = function(inputs, dt){
+  dt *= 0.1;
+
+  this.inputVelocity.set(0, 0, 0)
+
+  this.velocity.x = 0
+  this.velocity.z = 0
+
+  //left right up down and jump
+  if(inputs.forward){
+    this.inputVelocity.z = -this.velocityFactor * dt;
+  }
+
+  if(inputs.backward){
+    this.inputVelocity.z = this.velocityFactor * dt;
+  }
+
+  if(inputs.left){
+    this.inputVelocity.x = -this.velocityFactor * dt;
+  }
+
+  if(inputs.right){
+    this.inputVelocity.x = this.velocityFactor * dt;
+  }
+
+  if(inputs.jump){
+    if(this.canJump == true){
+      this.velocity.y = this.jumpVelocity
+    }
+    this.canJump = false
+  }
+
+  this.euler.x = inputs.rotX;
+  this.euler.y = inputs.rotY;
+  this.euler.order = "XYZ";
+  this.quat.setFromEuler(this.euler);
+  this.inputVelocity.applyQuaternion(this.quat);
+
+  this.velocity.x += this.inputVelocity.x
+  this.velocity.z += this.inputVelocity.z
+}
 
 init();
 setTimeout(loop, 2000);
