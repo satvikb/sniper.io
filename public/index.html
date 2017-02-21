@@ -139,61 +139,6 @@ var dt = 1/60;
 
 var stats = new Stats();
 
-
-
-// if ( havePointerLock ) {
-//   var element = document.body;
-//   var pointerlockchange = function ( event ) {
-//     if ( document.pointerLockElement === element || document.mozPointerLockElement === element || document.webkitPointerLockElement === element ) {
-//       controls.enabled = true;
-//       blocker.style.display = 'none';
-//       crosshairOverlay.style.display = '';
-//     } else {
-//       controls.enabled = false;
-//       blocker.style.display = '-webkit-box';
-//       blocker.style.display = '-moz-box';
-//       blocker.style.display = 'box';
-//       instructions.style.display = '';
-//     }
-//   }
-//   var pointerlockerror = function ( event ) {
-//     instructions.style.display = '';
-//     crosshairOverlay.style.display = 'none';
-//   }
-//   // Hook pointer lock state change events
-//   document.addEventListener( 'pointerlockchange', pointerlockchange, false );
-//   document.addEventListener( 'mozpointerlockchange', pointerlockchange, false );
-//   document.addEventListener( 'webkitpointerlockchange', pointerlockchange, false );
-//   document.addEventListener( 'pointerlockerror', pointerlockerror, false );
-//   document.addEventListener( 'mozpointerlockerror', pointerlockerror, false );
-//   document.addEventListener( 'webkitpointerlockerror', pointerlockerror, false );
-//   instructions.addEventListener( 'click', function ( event ) {
-//     instructions.style.display = 'none';
-//     crosshairOverlay.style.display = '';
-//     // Ask the browser to lock the pointer
-//     element.requestPointerLock = element.requestPointerLock || element.mozRequestPointerLock || element.webkitRequestPointerLock;
-//     if ( /Firefox/i.test( navigator.userAgent ) ) {
-//       var fullscreenchange = function ( event ) {
-//         if ( document.fullscreenElement === element || document.mozFullscreenElement === element || document.mozFullScreenElement === element ) {
-//           document.removeEventListener( 'fullscreenchange', fullscreenchange );
-//           document.removeEventListener( 'mozfullscreenchange', fullscreenchange );
-//           element.requestPointerLock();
-//         }
-//       }
-//       document.addEventListener( 'fullscreenchange', fullscreenchange, false );
-//       document.addEventListener( 'mozfullscreenchange', fullscreenchange, false );
-//       element.requestFullscreen = element.requestFullscreen || element.mozRequestFullscreen || element.mozRequestFullScreen || element.webkitRequestFullscreen;
-//       element.requestFullscreen();
-//     } else {
-//       element.requestPointerLock();
-//     }
-//     // console.log("unhide")
-//     document.getElementById("container").style.display = '';
-//   }, false );
-// } else {
-//   instructions.innerHTML = 'Oh well, your browser doesn\'t seem to support SNIPER.IO';
-// }
-
 init();
 animate();
 
@@ -217,13 +162,10 @@ function init() {
   stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
   document.body.appendChild( stats.dom );
 
-
-
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x00bfff)
   var ambient = new THREE.AmbientLight( 0x404040, 1 );
   scene.add( ambient );
-
 
   spectateCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
   spectateCamera.position.set(50, 60, -50)
@@ -262,13 +204,22 @@ function init() {
 
 
   // floor
-  geometry = new THREE.PlaneGeometry( 1000, 1000);
-  geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
-  material = new THREE.MeshLambertMaterial( { color: 0xffffff } );
-  mesh = new THREE.Mesh( geometry, material );
-  mesh.receiveShadow = true;
-  scene.add( mesh );
+  var loader = new THREE.TextureLoader();
 
+  loader.load('http://sniper.satvik.co/assets/textures/floor.jpg', function ( texture ) {
+    texture.wrapS = THREE.RepeatWrapping
+    texture.wrapT = THREE.RepeatWrapping
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    texture.repeat.set(10, 10)
+
+    geometry = new THREE.PlaneGeometry( 100, 100, 10, 10);
+    geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
+    material = new THREE.MeshLambertMaterial( { map: texture } );
+    mesh = new THREE.Mesh( geometry, material );
+    mesh.receiveShadow = true;
+    scene.add( mesh );
+  })
 
   raycaster = new THREE.Raycaster()
 
@@ -278,8 +229,8 @@ function init() {
 
   renderer.setSize( window.innerWidth, window.innerHeight );
 
-  var axisHelper = new THREE.AxisHelper( 7 );
-  scene.add( axisHelper );
+  // var axisHelper = new THREE.AxisHelper( 7 );
+  // scene.add( axisHelper );
 
   window.addEventListener( 'resize', onWindowResize, false );
 
@@ -342,14 +293,19 @@ var angle = 0
 function animate() {
   stats.begin()
 
+
   if(inGame){
-    controls.update( Date.now() - time );
+    var dt = Date.now() - time
+    controls.update( dt );
 
     var inputs = controls.inputs()
     //TODO Test if mouse moved
     // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
       socket.emit("move player", {id: socket.id, inputs: inputs});
     // }
+
+
+    // testLatency();
 
     renderer.render( scene, camera );
     drawOverlay()

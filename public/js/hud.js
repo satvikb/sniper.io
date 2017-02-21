@@ -6,6 +6,8 @@ var crosshairOverlay = null, crosshairContext;
 var weaponOverlay = null, weaponContext;
 var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
 
+var latencyEle;
+
 function Bitmap(src, width, height) {
   this.image = new Image();
   this.image.src = src;
@@ -22,6 +24,10 @@ function createOverlay(mainCanvas){
   overlayCanvas.id = "overlay"
   overlayCanvas.width = mainCanvas.width;
   overlayCanvas.height = mainCanvas.height;
+
+  latencyEle = document.createElement('p')
+  latencyEle.id = "latency"
+  container.appendChild(latencyEle)
 
   weaponOverlay = document.createElement('canvas')
   weaponOverlay.id = "weaponOverlay"
@@ -108,7 +114,7 @@ function drawOverlay() {
   var scopingContextHeight = scopingOverlay.height
 
   var centerX = scopingContextWidth/2, centerY = scopingContextHeight/2
-  var radius = scopingContextHeight/5//((scopingContextWidth)/(scopingContextHeight))*75
+  var radius = scopingContextHeight/4//((scopingContextWidth)/(scopingContextHeight))*75
   var crosshairadius = ((scopingContextWidth)/(scopingContextHeight))*5
 
   if(isScoping){
@@ -139,7 +145,7 @@ function drawOverlay() {
     crosshairContext.lineTo(centerX + radius, centerY)
     crosshairContext.moveTo(centerX, centerY - radius)
     crosshairContext.lineTo(centerX, centerY + radius)
-
+    crosshairContext.lineWidth = 2
     crosshairContext.stroke();
   }else if(isScoping == false){
     crosshairContext.moveTo(centerX - crosshairadius, centerY)

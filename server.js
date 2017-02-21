@@ -43,8 +43,15 @@ function onSocketConnection(client) {
   client.on('connectData', function(){
     this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
   })
+
+  // client.on("latency", sendLatency);
 };
 
+// function sendLatency(){
+//   this.emit("latency", {time: Date.now()})
+// }
+
+var mass = 30000, radius = 0.8, playerHeight = 2;
 function onJoinGame(data){
   //TODO Pick a server, test for availability, etc.
   var playerId = data.id
@@ -53,7 +60,7 @@ function onJoinGame(data){
 
   var gameId = 0
 
-  this.emit('joinGame', {gameId: gameId, nickname: nickname})
+  this.emit('joinGame', {gameId: gameId, nickname: nickname, mass: mass})
 }
 
 function onClientDisconnect() {
@@ -75,7 +82,6 @@ function onClientDisconnect() {
 };
 
 function onNewPlayer(data) {
-  var mass = 50, radius = 0.8, playerHeight = 2;
 
   var size = new CANNON.Vec3(radius/2, radius, radius/2)
   // var bodyShape = new CANNON.Box(size)
@@ -83,7 +89,7 @@ function onNewPlayer(data) {
   var body = new CANNON.Body({ mass: mass,
     angularFactor: new CANNON.Vec3(0, 1, 0)
   });
-  body.linearDamping = 0.9;
+  body.linearDamping = 0.6;
   body.position.set(0, 6, 0)
 
   body.angularDamping = 0.5
@@ -95,13 +101,13 @@ function onNewPlayer(data) {
   game.addPhysicsBody(newPlayer.body)
 
   //Tell all other players about the newbie
-  this.broadcast.emit("new player", {id: newPlayer.id, nickname: data.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z});
+  this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass});
 
   //Tell the new player of all the current players
   var i, existingPlayer;
   for (i = 0; i < players.length; i++) {
     existingPlayer = players[i];
-    this.emit("new player", {id: existingPlayer.id, nickname: existingPlayer.nickname, x: existingPlayer.body.position.x, y: existingPlayer.body.y, z: existingPlayer.body.z});
+    this.emit("new player", {id: existingPlayer.id, nickname: existingPlayer.nickname, x: existingPlayer.body.position.x, y: existingPlayer.body.y, z: existingPlayer.body.z, mass: mass});
   };
 
   players.push(newPlayer);
@@ -196,7 +202,7 @@ function Game(){
       cw.world.solver = solver;
     }
 
-    cw.world.gravity.set(0,-20,0);
+    cw.world.gravity.set(0,-30,0);
     cw.world.broadphase = new CANNON.NaiveBroadphase();
     // Create a slippery material (friction coefficient = 0.0)
     // physicsMaterial = new CANNON.Material("slipperyMaterial");
@@ -415,7 +421,7 @@ this.createSlope = function(width, height){
     new CANNON.Vec3(x2, -y2, x2),
     new CANNON.Vec3(x2, y2, x2),
     new CANNON.Vec3(-x2, y2, x2)]
-    var faces = [ [0, 5, 4],
+    var faces = [ [5, 4, 0],
     [0, 1, 5],
     [1, 0, 2],
     [3, 2, 0],
@@ -426,61 +432,6 @@ this.createSlope = function(width, height){
     // return new CANNON.ConvexPolyhedron(verts, faces)
     return [verts, faces]
   }
-
-  // this.createHouse = function(num, gridTile){
-  //
-  //   var response = models[num]
-  //   // Parse JSON string into object
-  //   var json = JSON.parse(response)
-  //   var objs = json["objs"];
-  //   var metadata = json["metadata"]
-  //   var height = metadata[0]["totalHeight"]
-  //   var width = metadata[0]["totalWidth"]
-  //
-  //   // var newScale = tileWidth/width
-  //   var gridPos = new CANNON.Vec3(((gridTile%n)-(n/2))*tileWidth, 0, ((gridTile/n)-(n/2))*tileWidth)
-  //
-  //   function vectorFromJSON(jsonVector){
-  //     return new CANNON.Vec3(jsonVector["x"], jsonVector["y"], jsonVector["z"])
-  //   }
-  //
-  //   function quatFromJSON(jsonVector){
-  //     return new THREE.Quaternion(jsonVector["x"], jsonVector["y"], jsonVector["z"], jsonVector["w"])
-  //   }
-  //
-  //   function divideVector(vec, by){
-  //     return new CANNON.Vec3(vec.x/by, vec.y/by, vec.z/by)
-  //   }
-  //
-  //   var house = new THREE.Geometry()
-  //
-  //   for(var i = 0; i < objs.length; i++){
-  //     var obj = objs[i];
-  //     var pos = divideVector(vectorFromJSON(obj["pos"]), 2)
-  //     var scale = vectorFromJSON(obj["scale"])
-  //     var rot = quatFromJSON(obj["rot"])
-  //
-  //     // scale.x = scale.x*newScale
-  //     // scale.y = scale.y*newScale
-  //     // scale.z = scale.z*newScale
-  //     // pos.x = pos.x*newScale
-  //     // pos.y = pos.y*newScale
-  //     // pos.z = pos.z*newScale
-  //
-  //     var halfExtents = new CANNON.Vec3(scale.x/2, scale.y/2, scale.z/2)
-  //     var boxShape = new CANNON.Box(halfExtents)
-  //
-  //     var boxBody = new CANNON.Body({mass: 0})
-  //     boxBody.addShape(boxShape)
-  //
-  //     var heightOffset = (height/2)//*newScale
-  //     boxBody.quaternion.set(rot.x, rot.y, rot.z, rot.w)
-  //     // boxBody.position.set(gridPos.x+(pos.x/2), (pos.y/2)+height, gridPos.z+(pos.z/2))
-  //     boxBody.position.set(gridPos.x+pos.x, pos.y+heightOffset, gridPos.z+pos.z)
-  //
-  //     this.addPhysicsBody(boxBody)
-  //   }
-  // }
 
   this.addPhysicsBody = function(body){
     cw.world.addBody(body)
@@ -505,6 +456,14 @@ this.createSlope = function(width, height){
 
 function Player(id, body, nickname) {
   var that = this
+
+  this.gameData = {
+    health: 100,
+    gun: 0,
+    score: 0,
+    maxAmmo: 0,
+    ammo: 0
+  }
 
   this.velocityFactor = 5
   this.jumpVelocity = 10
@@ -590,4 +549,4 @@ Player.prototype.move = function(inputs, dt){
 }
 
 init();
-setTimeout(loop, 2000);
+setTimeout(loop, 1000);

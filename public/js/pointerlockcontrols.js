@@ -4,7 +4,7 @@
 
     var eyeYPos = 2; // eyes are 2 meters above the ground
     var velocityFactor = 5;
-    var jumpVelocity = 10;
+    var jumpVelocity = 6;
     var scope = this;
 
     // camera.position.set(0, 0, 0)
