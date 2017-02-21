@@ -28,7 +28,7 @@ function initMap(){
   cw.world.solver = new CANNON.SplitSolver(solver);
   else
   cw.world.solver = solver;
-  cw.world.gravity.set(0,-20,0);
+  cw.world.gravity.set(0,-30,0);
   cw.world.broadphase = new CANNON.NaiveBroadphase();
   // Create a slippery material (friction coefficient = 0.0)
   physicsMaterial = new CANNON.Material("slipperyMaterial");
@@ -92,7 +92,6 @@ function createStage(){
 
     addPhysicsBody(boundaryBody)
 
-
     var lineGeo = new THREE.Geometry()
 
     var v1 = new THREE.Vector3(-worldSize-boundaryWhitespace, 0, 0)
@@ -111,29 +110,42 @@ function createStage(){
   slopeData = createSlope(tileWidth, tileHeight)
 
   console.log("Layers: "+map.length)
-  for(var l = 0; l < map.length; l++){
-    for(var x = 0; x < n; x++){
-      for(var y = 0; y < n; y++){
 
-        if(map[l][x][y] > 0){
-          createTile(x,y,l)
+  var loader = new THREE.TextureLoader();
+
+  loader.load('http://sniper.satvik.co/assets/textures/test.jpg', function ( texture ) {
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.LinearMipMapLinearFilter;
+    cubeMaterial = new THREE.MeshLambertMaterial( { map: texture } );
+    console.log("loaded texture")
+    for(var l = 0; l < map.length; l++){
+      for(var x = 0; x < n; x++){
+        for(var y = 0; y < n; y++){
+          if(map[l][x][y] > 0){
+            createTile(x,y,l)
+          }
         }
       }
     }
-  }
 
-  var stageMesh = new THREE.Mesh(stage, houseMaterial)
-  // stageMesh.castShadow = true
-  // stageMesh.receiveShadow = true
-  // stageMesh.shadowBias = -0.007
-  scene.add(stageMesh)
+    var stageMesh = new THREE.Mesh(stage, cubeMaterial)
+    // stageMesh.castShadow = true
+    // stageMesh.receiveShadow = true
+    // stageMesh.shadowBias = -0.007
+    scene.add(stageMesh)
+  })
+
+
 }
 
 var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
+var cubeMaterial;
 
 function createTile(x, y, l){
   var tile = map[l][x][y]
   var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), l*tileHeight, (y-(n/2))*tileWidth)
+
+
 
   if(tile){
     if(tile == 0){
@@ -153,7 +165,7 @@ function createTile(x, y, l){
 
 
       var boxGeometry = new THREE.BoxGeometry(tWidth, tHeight, tWidth);
-      var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
+      var boxMesh  = new THREE.Mesh(boxGeometry, cubeMaterial)
       boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
       boxMesh.updateMatrix()
       stage.merge(boxMesh.geometry, boxMesh.matrix)
@@ -171,7 +183,7 @@ function createTile(x, y, l){
       boxBody.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
 
       var boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-      var boxMesh  = new THREE.Mesh(boxGeometry, houseMaterial)
+      var boxMesh  = new THREE.Mesh(boxGeometry, cubeMaterial)
       boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
       boxMesh.updateMatrix()
       stage.merge(boxMesh.geometry, boxMesh.matrix)
@@ -192,7 +204,7 @@ function createTile(x, y, l){
 
       var slopeGeo = createSlopeGeo(slopeData[0], slopeData[1])
       slopeGeo.applyMatrix( new THREE.Matrix4().makeRotationY( rot ) );
-      var mesh = new THREE.Mesh(slopeGeo, houseMaterial)
+      var mesh = new THREE.Mesh(slopeGeo, cubeMaterial)
       mesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
 
       mesh.updateMatrix()
@@ -210,7 +222,7 @@ function createSlope(width, height){
                 new CANNON.Vec3(x2, -y2, x2),
                 new CANNON.Vec3(x2, y2, x2),
                 new CANNON.Vec3(-x2, y2, x2)]
-  var faces = [ [0, 5, 4],
+  var faces = [ [5, 4, 0],
                 [0, 1, 5],
                 [1, 0, 2],
                 [3, 2, 0],
@@ -233,6 +245,7 @@ function createSlopeGeo(verts, faces){
     slope.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]))
   }
   slope.computeFaceNormals()
+  slope.computeFlatVertexNormals()
 
   return slope
 }

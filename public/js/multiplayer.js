@@ -10,14 +10,31 @@ function setSocketEventHandlers(){
   socket.on("joinGame", onJoinGame)
   socket.on("disconnect", onSocketDisconnect);
   socket.on("connectData", onConnectData);
+  // socket.on("latency", latency);
 
   socket.on("new player", onNewPlayer);
   socket.on("updatePlayers", onUpdatePlayers);
   socket.on("hit player", onHitPlayer);
   socket.on("remove player", onRemovePlayer);
+
 }
 
+// var latency;
+//
+// function testLatency(){
+//   latency = Date.now()
+//   socket.emit("latency")
+// }
+//
+// function latency(data){
+//   var time = Date.now()
+//   latency = time-latency
+//   // console.log("Latency: "+latency+"ms "+data.time-Date.now()+"ms")
+//   document.getElementById("latency").innerHTML = latency+"ms"
+// }
+
 function onConnectData(data){
+  console.log("Latency: "+(Date.now()-latency)+"ms")
   worldSize = data.world.worldSize
   n = data.world.n
   tileWidth = data.world.tileWidth
@@ -32,33 +49,35 @@ function onConnectData(data){
 }
 
 
-var mass = 50, radius = 0.8, playerHeight = 2;
-var ballGeometry = new THREE.SphereGeometry(radius);
+var radius = 0.8, playerHeight = 2;
+var ballGeometry = new THREE.SphereGeometry(radius, 16, 16);
 
 function onNewPlayer(data) {
   console.log("New player "+data.id+" "+data.nickname)
-  var bodyShape = new CANNON.Sphere(radius)
-  var body = new CANNON.Body({ mass: mass, angularFactor: new CANNON.Vec3(0, 1, 0)});
-  body.linearDamping = 0.9;
 
-  body.angularDamping = 0.5
-  body.updateMassProperties();
+  if(data.id != socket.id){
+    var bodyShape = new CANNON.Sphere(radius)
+    var body = new CANNON.Body({ mass: data.mass, angularFactor: new CANNON.Vec3(0, 1, 0)});
+    body.linearDamping = 0.6;
+    body.angularDamping = 0.5
+    body.updateMassProperties();
 
-  // var shape = new THREE.BoxGeometry(bodyShape.radius, 32, 32);
-  var mesh = new THREE.Mesh( ballGeometry, material );
+    // var shape = new THREE.BoxGeometry(bodyShape.radius, 32, 32);
+    var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshLambertMaterial({color: 0xffffff}) );
 
-  var nameTag = makeTextLabelSprite(data.nickname);
-	nameTag.position.set(data.x, data.y+radius*1.25, data.z);
+    var nameTag = makeTextLabelSprite(data.nickname);
+  	nameTag.position.set(data.x, data.y+radius*1.25, data.z);
 
-  var newPlayer = new RemotePlayer(body, mesh, nameTag)
-  newPlayer.id = data.id
-  newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
+    var newPlayer = new RemotePlayer(body, mesh, nameTag)
+    newPlayer.id = data.id
+    newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
 
-  newPlayer.body.addShape(bodyShape);
-  addPhysicsBody(newPlayer.body);
-  scene.add(newPlayer.mesh)
-  scene.add(newPlayer.nameTag);
-  remotePlayers.push(newPlayer)
+    newPlayer.body.addShape(bodyShape);
+    addPhysicsBody(newPlayer.body);
+    scene.add(newPlayer.mesh)
+    scene.add(newPlayer.nameTag);
+    remotePlayers.push(newPlayer)
+  }
 };
 
 function makeTextLabelSprite( message, parameters ) {
@@ -114,6 +133,7 @@ function onUpdatePlayers(data){
 
 function onSocketConnected() {
   // console.log("Connected to socket server "+socket.id);
+  latency = Date.now()
   socket.emit("connectData")
   // socket.emit("new player", {id: socket.id});
 };
@@ -129,11 +149,11 @@ function onJoinGame(data){
   socket.emit("new player", {id: socket.id, nickname: data.nickname});
 
   var sphereShape = new CANNON.Sphere(radius)
-  var sphereBody = new CANNON.Body({ mass: mass, angularFactor: new CANNON.Vec3(0, 1, 0)});
+  var sphereBody = new CANNON.Body({ mass: data.mass, angularFactor: new CANNON.Vec3(0, 1, 0)});
 
   sphereBody.addShape(sphereShape);
   sphereBody.position.set(0,6,0);
-  sphereBody.linearDamping = 0.9;
+  sphereBody.linearDamping = 0.6;
   sphereBody.angularDamping = 0.5
 
   localPlayer = new RemotePlayer(sphereBody, null)
@@ -142,6 +162,7 @@ function onJoinGame(data){
 
   controls.oldPos = new THREE.Vector3().copy(controls.getObject().position)
   scene.add( controls.getObject() );
+  addPhysicsBody(sphereBody)
 }
 
 function onHitPlayer(data){
