@@ -6,6 +6,9 @@ var port = process.env.PORT || 8000;
 var THREE = require('three');
 var CANNON = require('cannon');
 
+var playerScene;
+var raycaster;
+var camera;
 var server = require('http').createServer(app)
 var fs = require('fs')
 
@@ -17,6 +20,10 @@ var game;
 function init() {
   players = [];
   clients = []; //Includes connections not in game, e.g. in lobby
+
+  playerScene = new THREE.Scene();
+  raycaster = new THREE.Raycaster()
+  camera = new THREE.PerspectiveCamera( 75,  800 / 600, 0.1, 1000 );
 
   game = new Game()
 
@@ -44,14 +51,26 @@ function onSocketConnection(client) {
     this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
   })
 
-  // client.on("latency", sendLatency);
+  client.on("chatMessage", chatMessage)
+
+  client.on("shoot", playerShoot)
+
+  // this.emit('chatMessage', {msg: "hi from server"})
+  // this.emit('chatMessage', {msg: "hi from server 1"})
+  // this.emit('chatMessage', {msg: "hifromserver2dafasdfasdfwefasdfasdfaffasdf"})
 };
 
-// function sendLatency(){
-//   this.emit("latency", {time: Date.now()})
-// }
+function chatMessage(data){
+  var player = playerById(data.from)
+
+  if(player){
+    socket.sockets.emit('chatMessage', {from: player.nickname, msg: data.msg})
+  }
+}
 
 var mass = 30000, radius = 0.8, playerHeight = 2;
+var ballGeometry = new THREE.SphereGeometry(radius, 16, 16);
+
 function onJoinGame(data){
   //TODO Pick a server, test for availability, etc.
   var playerId = data.id
@@ -59,14 +78,14 @@ function onJoinGame(data){
   nickname.length > 6 ? nickname.substring(0, 6) : nickname
 
   var gameId = 0
-
+  //TODO: prevent username from being changed when sent to client side to be sent back here
   this.emit('joinGame', {gameId: gameId, nickname: nickname, mass: mass})
 }
 
 function onClientDisconnect() {
-  util.log("Client has disconnected: "+this.id);
-
   var removePlayer = playerById(this.id);
+
+  util.log("Client has disconnected: "+removePlayer.nickname+" ("+this.id+")");
 
   if (!removePlayer) {
     util.log("(disconnect) Player not found: "+this.id);
@@ -80,6 +99,7 @@ function onClientDisconnect() {
 
   this.broadcast.emit("remove player", {id: this.id});
 };
+
 
 function onNewPlayer(data) {
 
@@ -95,10 +115,13 @@ function onNewPlayer(data) {
   body.angularDamping = 0.5
   body.updateMassProperties();
 
-  var newPlayer = new Player(this.id, body, data.nickname);
+  var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshBasicMaterial({}) );
+
+  var newPlayer = new Player(this.id, body, mesh, data.nickname);
 
   newPlayer.body.addShape(bodyShape);
   game.addPhysicsBody(newPlayer.body)
+  playerScene.add(mesh)
 
   //Tell all other players about the newbie
   this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass});
@@ -111,7 +134,7 @@ function onNewPlayer(data) {
   };
 
   players.push(newPlayer);
-  util.log("Added new player "+this.id+" Total players now: "+players.length)
+  util.log("Added new player "+newPlayer.nickname+" ("+this.id+") Total players now: "+players.length)
 };
 
 function onHitPlayer(data){
@@ -154,6 +177,52 @@ function sendUpdate(){
   }
   socket.sockets.emit('updatePlayers', {data: getUpdateData()})
 }
+
+//TODO When moved hit test to server side, delete
+function getRemotePlayerObjects(){
+  var objects = []
+  for(var o = 0; o < players.length; o++){
+    objects.push(players[o].mesh)
+  }
+  return objects
+}
+
+function getRemotePlayerFromObject(obj){
+  for(var o = 0; o < players.length; o++){
+    if(players[o].mesh == obj){
+      return players[o]
+    }
+  }
+  return false
+}
+
+function playerShoot(data){
+  var shootingPlayer = playerById(data.id)
+
+  if(shootingPlayer){
+    camera.position.copy(shootingPlayer.mesh.position)
+    camera.quaternion.copy(shootingPlayer.mesh.quaternion)
+    camera.position.y += 2
+
+    // var matrix = new THREE.Matrix4();
+    // matrix.extractRotation( shootingPlayer.mesh.matrix );
+    //
+    // var direction = new THREE.Vector3( 0, 0, -1 );
+    // direction = direction.applyQuaternion(shootingPlayer.mesh.quaternion);//matrix.multiplyVector3( direction );
+    //
+    // raycaster.set(shootingPlayer.mesh.position, direction)
+    raycaster.set(camera.getWorldPosition(), camera.getWorldDirection())
+    var objects = getRemotePlayerObjects()
+    var intersects = raycaster.intersectObjects(objects)
+
+    if(intersects.length > 0){
+      var shotPlayerMesh = intersects[0].object
+      var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
+      console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
+    }
+  }
+}
+
 
 function playerById(id) {
   var i;
@@ -444,6 +513,11 @@ this.createSlope = function(width, height){
   }
 
   this.updatePhysics = function(){
+    for(var i = 0; i < players.length; i++){
+      var player = players[i]
+      player.mesh.position.copy(player.body.position)
+    }
+    playerScene.updateMatrixWorld(true)
     cw.world.step(dt)
   }
 
@@ -454,7 +528,7 @@ this.createSlope = function(width, height){
   this.gameInit();
 }
 
-function Player(id, body, nickname) {
+function Player(id, body, mesh, nickname) {
   var that = this
 
   this.gameData = {
@@ -471,6 +545,7 @@ function Player(id, body, nickname) {
   this.id = id
   this.nickname = nickname
   this.body = body
+  this.mesh = mesh
 
   this.velocity = body.velocity
 
@@ -546,6 +621,8 @@ Player.prototype.move = function(inputs, dt){
 
   this.velocity.x += this.inputVelocity.x
   this.velocity.z += this.inputVelocity.z
+
+  // mesh.position.copy(body.position)
 }
 
 init();

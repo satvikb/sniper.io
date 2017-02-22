@@ -3,6 +3,7 @@ function RemotePlayer(body, mesh, nameTag) {
   this.body = body
   this.mesh = mesh
   this.nameTag = nameTag
+  this.nickname
 }
 
 RemotePlayer.prototype.setPos = function(pos){

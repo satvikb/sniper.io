@@ -6,13 +6,33 @@ var crosshairOverlay = null, crosshairContext;
 var weaponOverlay = null, weaponContext;
 var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
 
-var latencyEle;
+var stats = new Stats();
 
 function Bitmap(src, width, height) {
   this.image = new Image();
   this.image.src = src;
   this.width = width;
   this.height = height;
+}
+
+function initHUD(){
+  container = document.createElement('div')
+  container.id = "container"
+  document.body.appendChild(container);
+
+  canvas = document.createElement('canvas')
+  canvas.id = "canvas"
+  container.appendChild(canvas)
+
+
+  if(!overlay){
+    overlay = createOverlay(canvas)
+  }
+
+  createChatElement()
+
+  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+  document.body.appendChild( stats.dom );
 }
 
 function createOverlay(mainCanvas){

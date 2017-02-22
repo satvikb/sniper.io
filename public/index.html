@@ -14,12 +14,14 @@
     overflow: hidden;
     font-family: arial;
   }
+
   #blocker {
     position: absolute;
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5);
   }
+
   #instructions {
     width: 100%;
     height: 100%;
@@ -80,7 +82,68 @@
     color: black;
     font-size: 24px;
     text-align: left;
+  }
 
+  /*#chat{
+    position: absolute;
+    top: 25%;
+    left: 0%;
+    width: 22.5%;
+    height: 50%;
+    z-index: 5000;
+    border-width: 0px;
+    color: black;
+    font-size: 12px;
+    text-align: left;
+    background: rgba(61, 61, 61, 0.5);
+  }*/
+
+  /*#chat p{*/
+    /*position: relative;
+    overflow: auto;
+    bottom: 0*/
+    /*vertical-align: bottom;
+    display: table-cell;
+    padding-left: 2%;
+    width: 100%*/
+  /*}*/
+
+  .chatWrapper {
+    position: absolute;
+    top: 25%;
+    left: 0%;
+    width: 20%;
+    height: 50%;
+    z-index: 5000;
+    font-size: 12px;
+    text-align: left;
+    background: rgba(61, 61, 61, 0.5);
+  }
+
+  .chatBox {
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 95%;
+  }
+
+  .chatBox div{
+    word-break: break-all;
+  }
+
+  .chatField {
+    position: absolute;
+    top:100%;
+    left: 0%;
+    height: 7.5%;
+    width: 100%;
+    z-index: 5001;
+    font-size: 12px;
+    text-align: left;
+    border: 0;
+    outline: none;
+
+    background: rgba(61, 61, 61, 0.85);
   }
 
   #canvasContainer {
@@ -95,17 +158,20 @@
 
   <script src="http://sniper.satvik.co/debug/Stats.js"></script>
   <script src="http://sniper.satvik.co/debug/CannonDebugRenderer.js"></script>
+
+  <script src="http://sniper.satvik.co/js/keys.js"></script>
   <script src="http://sniper.satvik.co/js/pointerlockcontrols.js"></script>
   <script src="http://sniper.satvik.co/js/stage.js"></script>
   <script src="http://sniper.satvik.co/js/multiplayer.js"></script>
   <script src="http://sniper.satvik.co/js/hud.js"></script>
   <script src="http://sniper.satvik.co/js/remotePlayer.js"></script>
+  <script src="http://sniper.satvik.co/js/chat.js"></script>
 
   <div id="blocker" style="z-index: 3000; display: none; ">
     <div id="instructions">
       <span style="font-size:40px; ">SNIPER.IO</span>
       <br />
-      (W,A,S,D : Move, SPACE : Jump, MOUSE : Look, CLICK : Shoot, L-Shift : Scope)
+      (W,A,S,D : Move, SPACE : Jump, MOUSE : Look, CLICK : Shoot, L-Shift : Scope, T: Chat)
     </div>
   </div>
   <script>
@@ -116,6 +182,7 @@
     socket.emit("joinGame", {id: socket.id, nickname: nickname})
     document.getElementById("lobby").style.display = 'none'
     blocker.style.display = ''
+    chatWrapper.style.display = ''
   }
   </script>
   <div id="lobby">
@@ -132,35 +199,16 @@ var geometry, material, mesh;
 
 var controls,time = Date.now();
 var blocker = document.getElementById( 'blocker' );
-// var instructions = document.getElementById( 'instructions' );
-// var havePointerLock = 'pointerLockElement' in document || 'mozPointerLockElement' in document || 'webkitPointerLockElement' in document;
 
 var dt = 1/60;
-
-var stats = new Stats();
 
 init();
 animate();
 
 function init() {
 
-  initPointerLock()
-
-  container = document.createElement('div')
-  container.id = "container"
-  document.body.appendChild(container);
-
-  canvas = document.createElement('canvas')
-  canvas.id = "canvas"
-  container.appendChild(canvas)
-
-
-  if(!overlay){
-    overlay = createOverlay(canvas)
-  }
-
-  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-  document.body.appendChild( stats.dom );
+  initPointerLock();
+  initHUD();
 
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x00bfff)
@@ -251,7 +299,13 @@ function initPointerLock(){
 
   element.onclick = function() {
     if(inGame){
-      element.requestPointerLock();
+      if(chatting == false){
+        element.requestPointerLock();
+      }else{
+        chatting = false
+        chatField.style.display = "none"
+        element.requestPointerLock()
+      }
     }
   };
 
@@ -278,14 +332,6 @@ function initPointerLock(){
       }
     }
   }
-
-  // function mousemove(e){
-  //   if(inGame){
-  //     if(controls.enabled){
-  //
-  //     }
-  //   }
-  // }
 }
 
 var angle = 0
@@ -299,6 +345,7 @@ function animate() {
     controls.update( dt );
 
     var inputs = controls.inputs()
+
     //TODO Test if mouse moved
     // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
       socket.emit("move player", {id: socket.id, inputs: inputs});
@@ -332,16 +379,38 @@ function animate() {
 window.addEventListener("click",function(e){
   if(inGame){
     if(controls.enabled == true){
-      raycaster.set(camera.getWorldPosition(), camera.getWorldDirection())
-      var objects = getRemotePlayerObjects()
-      var intersects = raycaster.intersectObjects(objects)
+      // raycaster.set(camera.getWorldPosition(), camera.getWorldDirection())
+      // var objects = getRemotePlayerObjects()
+      // var intersects = raycaster.intersectObjects(objects)
+      //
+      // if(intersects.length > 0){
+      //   var shotPlayer = intersects[0].object
+      //   var remotePlayer = getRemotePlayerFromObject(shotPlayer)
+      //   console.log("Hit: "+remotePlayer.id)
+      //   socket.emit("hit player", {id: remotePlayer.id});
+      // }
 
-      if(intersects.length > 0){
-        var shotPlayer = intersects[0].object
-        var remotePlayer = getRemotePlayerFromObject(shotPlayer)
-        console.log("Hit: "+remotePlayer.id)
-        socket.emit("hit player", {id: remotePlayer.id});
-      }
+      // var matrix = new THREE.Matrix4();
+      // matrix.extractRotation( localPlayer.mesh.matrix );
+      //
+      // var direction = new THREE.Vector3( 0, 0, 1 );
+      // direction.applyQuaternion(localPlayer.mesh.quaternion);//matrix.multiplyVector3( direction );
+
+
+      // var position = new THREE.Vector3();
+      // var scale = new THREE.Vector3();
+      // var quaternion = new THREE.Quaternion();
+      var direction = new THREE.Vector3( 0, 0, 1 );
+
+      // localPlayer.mesh.matrixWorld.decompose( position, quaternion, scale );
+
+      direction.applyQuaternion( localPlayer.mesh.quaternion );
+
+      var d2 = camera.getWorldDirection();
+      console.log("D1: "+direction.x+" "+direction.y+" "+direction.z+" D2:"+d2.x+" "+d2.y+" "+d2.z)
+
+
+      socket.emit("shoot", {id: socket.id})
     }
   }
 });
