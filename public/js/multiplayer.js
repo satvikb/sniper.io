@@ -17,6 +17,7 @@ function setSocketEventHandlers(){
   socket.on("hit player", onHitPlayer);
   socket.on("remove player", onRemovePlayer);
 
+  socket.on("chatMessage", chatMessage)
 }
 
 // var latency;
@@ -70,6 +71,8 @@ function onNewPlayer(data) {
 
     var newPlayer = new RemotePlayer(body, mesh, nameTag)
     newPlayer.id = data.id
+    newPlayer.nickname = data.nickname
+
     newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
 
     newPlayer.body.addShape(bodyShape);
@@ -156,7 +159,11 @@ function onJoinGame(data){
   sphereBody.linearDamping = 0.6;
   sphereBody.angularDamping = 0.5
 
-  localPlayer = new RemotePlayer(sphereBody, null)
+
+  var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshLambertMaterial({color: 0xffffff}) );
+
+  localPlayer = new RemotePlayer(sphereBody, mesh)
+  localPlayer.nickname = data.nickname
 
   controls = new PointerLockControls( camera , sphereBody );
 
@@ -201,21 +208,3 @@ function playerById(id) {
 
   return false;
 };
-
-//TODO When moved hit test to server side, delete
-function getRemotePlayerObjects(){
-  var objects = []
-  for(var o = 0; o < remotePlayers.length; o++){
-    objects.push(remotePlayers[o].mesh)
-  }
-  return objects
-}
-
-function getRemotePlayerFromObject(obj){
-  for(var o = 0; o < remotePlayers.length; o++){
-    if(remotePlayers[o].mesh == obj){
-      return remotePlayers[o]
-    }
-  }
-  return false
-}

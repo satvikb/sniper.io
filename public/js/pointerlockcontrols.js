@@ -7,8 +7,6 @@
     var jumpVelocity = 6;
     var scope = this;
 
-    // camera.position.set(0, 0, 0)
-
     var pitchObject = new THREE.Object3D();
     pitchObject.add( camera );
 
@@ -72,38 +70,39 @@
     var onKeyDown = function ( event ) {
 
         switch ( event.keyCode ) {
+          case keys.moveUp: // w
+              moveForward = true;
+              break;
+          case keys.moveLeft: // a
+              moveLeft = true; break;
+          case keys.moveBack: // s
+              moveBackward = true;
+              break;
+          case keys.moveRight: // d
+              moveRight = true;
+              break;
+          case keys.jump: // space
+              if ( canJump === true ){
+                  velocity.y = jumpVelocity;
+              }
+              canJump = false;
+              jumpBtn = true;
+              break;
+          case keys.chat:
+            document.exitPointerLock()
+            showChatfield()
+            break;
 
-            case 38: // up
-            case 87: // w
-                moveForward = true;
-                break;
-
-            case 37: // left
-            case 65: // a
-                moveLeft = true; break;
-
-            case 40: // down
-            case 83: // s
-                moveBackward = true;
-                break;
-
-            case 39: // right
-            case 68: // d
-                moveRight = true;
-                break;
-
-            case 32: // space
-                if ( canJump === true ){
-                    velocity.y = jumpVelocity;
-                }
-                canJump = false;
-                jumpBtn = true;
-                break;
+          case keys.sendMessage:
+            if(chatting){
+              sendChatMessage()
+            }
+            break;
         }
 
-
+        //scope
         if(controls.enabled){
-          if(event.shiftKey == true){
+          if(event.keyCode == keys.scope){
             setScoping(true)
           }
         }else{
@@ -114,34 +113,29 @@
     var onKeyUp = function ( event ) {
 
         switch( event.keyCode ) {
-
-            case 38: // up
-            case 87: // w
+            case keys.moveUp: // w
                 moveForward = false;
                 break;
 
-            case 37: // left
-            case 65: // a
+            case keys.moveLeft: // a
                 moveLeft = false;
                 break;
 
-            case 40: // down
-            case 83: // a
+            case keys.moveBack: // a
                 moveBackward = false;
                 break;
 
-            case 39: // right
-            case 68: // d
+            case keys.moveRight: // d
                 moveRight = false;
                 break;
-            case 32:
+            case keys.jump:
                 jumpBtn = false
                 break;
-
         }
 
+        //scope
         if(controls.enabled){
-          if(event.shiftKey == false){
+          if(event.keyCode == keys.scope){
             setScoping(false)
           }
         }else{
@@ -188,48 +182,41 @@
           moveRight = false
           jumpBtn = false
           return;
+        }else{
+
+          delta *= 0.1;
+
+          inputVelocity.set(0,0,0);
+          // velocity.set(0, 0, 0);
+          velocity.x = 0
+          velocity.z = 0
+
+          if ( moveForward ){
+              inputVelocity.z = -velocityFactor * delta;
+          }
+          if ( moveBackward ){
+              inputVelocity.z = velocityFactor * delta;
+          }
+
+          if ( moveLeft ){
+              inputVelocity.x = -velocityFactor * delta;
+          }
+          if ( moveRight ){
+              inputVelocity.x = velocityFactor * delta;
+          }
+
+          // Convert velocity to world coordinates
+          euler.x = pitchObject.rotation.x;
+          euler.y = yawObject.rotation.y;
+          euler.order = "XYZ";
+          quat.setFromEuler(euler);
+          inputVelocity.applyQuaternion(quat);
+          //quat.multiplyVector3(inputVelocity);
+
+          // Add to the object
+          velocity.x += inputVelocity.x;
+          velocity.z += inputVelocity.z;
         }
-
-        delta *= 0.1;
-
-        inputVelocity.set(0,0,0);
-        // velocity.set(0, 0, 0);
-        velocity.x = 0
-        velocity.z = 0
-
-        if ( moveForward ){
-            inputVelocity.z = -velocityFactor * delta;
-        }
-        if ( moveBackward ){
-            inputVelocity.z = velocityFactor * delta;
-        }
-
-        if ( moveLeft ){
-            inputVelocity.x = -velocityFactor * delta;
-        }
-        if ( moveRight ){
-            inputVelocity.x = velocityFactor * delta;
-        }
-
-        // Convert velocity to world coordinates
-        euler.x = pitchObject.rotation.x;
-        euler.y = yawObject.rotation.y;
-        euler.order = "XYZ";
-        quat.setFromEuler(euler);
-        inputVelocity.applyQuaternion(quat);
-        //quat.multiplyVector3(inputVelocity);
-
-        // Add to the object
-        velocity.x += inputVelocity.x;
-        velocity.z += inputVelocity.z;
-
-        // cannonBody.inertia.set(0, 0, 0);
-        // cannonBody.invInertia.set(0, 0, 0);
-
-        // cannonBody.angularVelocity.set(0, 0, 0);
-        // cannonBody.angularVelocity.set(0,0,0);
-
-        // oldPos = new THREE.Vector3().copy(this.getObject().position)
 
         yawObject.position.copy(cannonBody.position);
     };
@@ -247,18 +234,7 @@
         rotY: yawObject.rotation.y
       }
 
-      // var newPos = this.getRoundedVector(this.getPos())
-      // oldPos = this.getRoundedVector(oldPos)
-      //
-      // // console.log("Old: "+oldPos.x+" New: "+newPos.x)
-      //
-      // if((newPos.x != oldPos.x) == true || (newPos.y != oldPos.y) == true || (newPos.z != oldPos.z) == true){
-      //   oldPos = new THREE.Vector3().copy(newPos)
-      //   return true;
-      // }
-      // // oldPos = newPos
-      // return false;
-        return inputs;
+      return inputs;
     }
 
     this.getRoundedVector = function(vec){

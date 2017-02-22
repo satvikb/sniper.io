@@ -12,6 +12,7 @@ Engage other players in combat, with all these awesome features:
 <br>Perma-Death.
 <br>Quick matches.
 <br>Leaderboards.
+<br>Chatting
 <br>Unlimited ammo.
 <br>Immersive HUD.
 <br>Fast performance.
