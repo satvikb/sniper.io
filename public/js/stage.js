@@ -31,10 +31,10 @@ function initMap(){
   cw.world.gravity.set(0,-30,0);
   cw.world.broadphase = new CANNON.NaiveBroadphase();
   // Create a slippery material (friction coefficient = 0.0)
-  physicsMaterial = new CANNON.Material("slipperyMaterial");
-  var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
-  // We must add the contact materials to the world
-  cw.world.addContactMaterial(physicsContactMaterial);
+  // physicsMaterial = new CANNON.Material("slipperyMaterial");
+  // var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
+  // // We must add the contact materials to the world
+  // cw.world.addContactMaterial(physicsContactMaterial);
 
   //Ground plane
   var groundShape = new CANNON.Plane(); //inf size
@@ -109,37 +109,26 @@ function createStage(){
 
   slopeData = createSlope(tileWidth, tileHeight)
 
-  console.log("Layers: "+map.length)
+  // console.log("Layers: "+map.length)
 
-  var loader = new THREE.TextureLoader();
-
-  loader.load('http://sniper.satvik.co/assets/textures/test.jpg', function ( texture ) {
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.LinearMipMapLinearFilter;
-    cubeMaterial = new THREE.MeshLambertMaterial( { map: texture } );
-    console.log("loaded texture")
-    for(var l = 0; l < map.length; l++){
-      for(var x = 0; x < n; x++){
-        for(var y = 0; y < n; y++){
-          if(map[l][x][y] > 0){
-            createTile(x,y,l)
-          }
+  for(var l = 0; l < map.length; l++){
+    for(var x = 0; x < n; x++){
+      for(var y = 0; y < n; y++){
+        if(map[l][x][y] > 0){
+          createTile(x,y,l)
         }
       }
     }
+  }
 
-    var stageMesh = new THREE.Mesh(stage, cubeMaterial)
-    // stageMesh.castShadow = true
-    // stageMesh.receiveShadow = true
-    // stageMesh.shadowBias = -0.007
-    scene.add(stageMesh)
-  })
-
-
+  var stageMesh = new THREE.Mesh(stage, cubeMaterial)
+  // stageMesh.castShadow = true
+  // stageMesh.receiveShadow = true
+  // stageMesh.shadowBias = -0.007
+  scene.add(stageMesh)
+  // console.log("Created stage mesh")
+  loadedStage()
 }
-
-var houseMaterial = new THREE.MeshLambertMaterial( { color: 0xdddddd} ); //TODO MeshBasicMaterial?
-var cubeMaterial;
 
 function createTile(x, y, l){
   var tile = map[l][x][y]

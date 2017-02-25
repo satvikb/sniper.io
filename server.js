@@ -23,7 +23,6 @@ function init() {
 
   playerScene = new THREE.Scene();
   raycaster = new THREE.Raycaster()
-  camera = new THREE.PerspectiveCamera( 75,  800 / 600, 0.1, 1000 );
 
   game = new Game()
 
@@ -45,25 +44,33 @@ function onSocketConnection(client) {
   client.on("disconnect", onClientDisconnect);
   client.on("new player", onNewPlayer);
   client.on("move player", onMovePlayer);
-  // client.on("hit player", onHitPlayer);
 
   client.on('connectData', function(){
     this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
   })
 
-  client.on("chatMessage", chatMessage)
-
   client.on("shoot", playerShoot)
+  client.on("look player", onLookPlayer)
 
-  // this.emit('chatMessage', {msg: "hi from server"})
+  client.on("hit player", onHitPlayer);
+
+  client.on("chatMessage", chatMessage)
 };
 
 function chatMessage(data){
   var player = playerById(data.from)
 
   if(player){
-    socket.sockets.emit('chatMessage', {from: player.nickname, msg: data.msg})
+    if(data.msg != ""){
+      //TODO Message filtering
+
+      sendActualChatMessage({from: player.nickname, msg: data.msg})
+    }
   }
+}
+
+function sendActualChatMessage(data){
+  socket.sockets.emit("chatMessage", {from: data.from, msg: data.msg})
 }
 
 var mass = 30000, radius = 0.8, playerHeight = 2;
@@ -73,7 +80,7 @@ function onJoinGame(data){
   //TODO Pick a server, test for availability, etc.
   var playerId = data.id
   var nickname = data.nickname == "" ? "player" : data.nickname
-  nickname.length > 6 ? nickname.substring(0, 6) : nickname
+  nickname.length > 8 ? nickname.substring(0, 8) : nickname
 
   var gameId = 0
   //TODO: prevent username from being changed when sent to client side to be sent back here
@@ -113,13 +120,19 @@ function onNewPlayer(data) {
   body.angularDamping = 0.5
   body.updateMassProperties();
 
+  //set spawn and rotation here?
+  var rotation = new CANNON.Vec3()
+
   var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshBasicMaterial({}) );
 
   var newPlayer = new Player(this.id, body, mesh, data.nickname);
+  newPlayer.camRotation = rotation
 
   newPlayer.body.addShape(bodyShape);
   game.addPhysicsBody(newPlayer.body)
   playerScene.add(mesh)
+
+  // newPlayer.setPosition(new CANNON.Vec3(0, 4, 0))
 
   //Tell all other players about the newbie
   this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass});
@@ -135,17 +148,17 @@ function onNewPlayer(data) {
   util.log("Added new player "+newPlayer.nickname+" ("+this.id+") Total players now: "+players.length)
 };
 
-// function onHitPlayer(data){
-//   var hitPlayer = playerById(data.id)
-//
-//   if(!hitPlayer){
-//     console.log("(hit) player not found: "+data.id)
-//   }
-//
-//   // TODO: Affect health here and anything else when hit by a bullet, and give data
-//
-//   this.broadcast.emit("hit player", {id: hitPlayer.id})
-// }
+function onHitPlayer(data){
+  var hitPlayer = playerById(data.id)
+
+  if(!hitPlayer){
+    console.log("(hit) player not found: "+data.id)
+  }
+
+  // TODO: Affect health here and anything else when hit by a bullet, and give data
+
+  this.broadcast.emit("hit player", {id: hitPlayer.id})
+}
 
 var defaultSensitivity = 0.016
 var scopingSensitivity = 0.003
@@ -235,8 +248,12 @@ function playerShoot(data){
     if(intersects.length > 0){
       var shotPlayerMesh = intersects[0].object
       var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
-      // console.log(shootingPlayer.id+" hit "+shotPlayer.id)
-      this.emit("hit player", {players: [shotPlayer.id]})
+
+      if(shotPlayer){
+        // console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
+        sendActualChatMessage({from: "server", msg: shootingPlayer.nickname+" hit "+shotPlayer.nickname+"!"})
+        this.emit("hit player", {players: [shotPlayer.id]})
+      }
     }
   }
 }
@@ -376,6 +393,8 @@ function Game(){
         }
       }
     }
+
+    console.log("created map ("+n+")")
   }
 
   // this.loadModels = function(){
@@ -420,9 +439,6 @@ function Game(){
 
           ]
   //     (-n/2, n/2) Q3               (n/2, n/2) Q4
-
-  console.log("created map ("+n+")")
-
 }
 
 this.getMap = function(){
@@ -576,10 +592,10 @@ function Player(id, body, mesh, nickname) {
   this.canJump = true
 
   //use sparingly
-  // this.setPosition = function(pos){
-  //   position = pos
-  //   body.position.set(pos);
-  // }
+  this.setPosition = function(pos){
+    position = pos
+    body.position.set(pos);
+  }
 
   this.contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
   this.upAxis = new CANNON.Vec3(0,1,0);
@@ -632,8 +648,8 @@ Player.prototype.move = function(inputs, dt){
     this.canJump = false
   }
 
-  this.euler.x = inputs.rotX;
-  this.euler.y = inputs.rotY;
+  this.euler.x = this.camRotation.x;
+  this.euler.y = this.camRotation.y;
   this.euler.order = "XYZ";
   this.quat.setFromEuler(this.euler);
   this.inputVelocity.applyQuaternion(this.quat);

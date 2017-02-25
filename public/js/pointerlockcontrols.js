@@ -96,8 +96,10 @@
               jumpBtn = true;
               break;
           case keys.chat:
-            document.exitPointerLock()
-            showChatfield()
+            if(chatting == false){
+              showChatfield()
+              document.exitPointerLock()
+            }
             break;
 
           case keys.sendMessage:
