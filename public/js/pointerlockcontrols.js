@@ -61,11 +61,18 @@
         var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
         var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
-        yawObject.rotation.y -= movementX * currentSensitivity;
-        pitchObject.rotation.x -= movementY * currentSensitivity;
+        socket.emit("look player", {id: socket.id, movementX: movementX, movementY: movementY})
 
-        pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+        // yawObject.rotation.y -= movementX * currentSensitivity;
+        // pitchObject.rotation.x -= movementY * currentSensitivity;
+        //
+        // pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
     };
+
+    this.updateRotation = function(data){
+      yawObject.rotation.y = data.rotationY
+      pitchObject.rotation.x = data.rotationX
+    }
 
     var onKeyDown = function ( event ) {
 
@@ -229,9 +236,9 @@
         right: moveRight,
         backward: moveBackward,
         forward: moveForward,
-        jump: jumpBtn,
-        rotX: pitchObject.rotation.x,
-        rotY: yawObject.rotation.y
+        jump: jumpBtn//,
+        // rotX: pitchObject.rotation.x,
+        // rotY: yawObject.rotation.y
       }
 
       return inputs;

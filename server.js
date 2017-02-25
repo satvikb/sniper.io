@@ -45,7 +45,7 @@ function onSocketConnection(client) {
   client.on("disconnect", onClientDisconnect);
   client.on("new player", onNewPlayer);
   client.on("move player", onMovePlayer);
-  client.on("hit player", onHitPlayer);
+  // client.on("hit player", onHitPlayer);
 
   client.on('connectData', function(){
     this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
@@ -56,8 +56,6 @@ function onSocketConnection(client) {
   client.on("shoot", playerShoot)
 
   // this.emit('chatMessage', {msg: "hi from server"})
-  // this.emit('chatMessage', {msg: "hi from server 1"})
-  // this.emit('chatMessage', {msg: "hifromserver2dafasdfasdfwefasdfasdfaffasdf"})
 };
 
 function chatMessage(data){
@@ -137,16 +135,41 @@ function onNewPlayer(data) {
   util.log("Added new player "+newPlayer.nickname+" ("+this.id+") Total players now: "+players.length)
 };
 
-function onHitPlayer(data){
-  var hitPlayer = playerById(data.id)
+// function onHitPlayer(data){
+//   var hitPlayer = playerById(data.id)
+//
+//   if(!hitPlayer){
+//     console.log("(hit) player not found: "+data.id)
+//   }
+//
+//   // TODO: Affect health here and anything else when hit by a bullet, and give data
+//
+//   this.broadcast.emit("hit player", {id: hitPlayer.id})
+// }
 
-  if(!hitPlayer){
-    console.log("(hit) player not found: "+data.id)
+var defaultSensitivity = 0.016
+var scopingSensitivity = 0.003
+
+var PI_2 = Math.PI / 2;
+
+function onLookPlayer(data){
+  var lookPlayer = playerById(data.id)
+
+  if(!lookPlayer){
+    console.log("cannot rotate player")
   }
 
-  // TODO: Affect health here and anything else when hit by a bullet, and give data
+  //set body rotation
+  // lookPlayer.body.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), )
+  var changeX = data.movementY * defaultSensitivity
+  var changeY = data.movementX * defaultSensitivity
 
-  this.broadcast.emit("hit player", {id: hitPlayer.id})
+  lookPlayer.camRotation.x -= changeX
+  lookPlayer.camRotation.y -= changeY
+
+  lookPlayer.camRotation.x = Math.max( - PI_2, Math.min( PI_2, lookPlayer.camRotation.x ) );
+  // lookPlayer.body.angularVelocity.set(changeX, changeY, 0)
+  this.emit("look player", {rotationX: lookPlayer.camRotation.x, rotationY: lookPlayer.camRotation.y})
 }
 
 function onMovePlayer(data) {
@@ -200,25 +223,20 @@ function playerShoot(data){
   var shootingPlayer = playerById(data.id)
 
   if(shootingPlayer){
-    camera.position.copy(shootingPlayer.mesh.position)
-    camera.quaternion.copy(shootingPlayer.mesh.quaternion)
-    camera.position.y += 2
+    // var direction = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(shootingPlayer.camRotation.x, shootingPlayer.camRotation.y, shootingPlayer.camRotation.z))
+    // data.camDir.normalize()
+    // console.log("shooting ("+shootingPlayer.id +") ("+data.camDir.x+" "+data.camDir.y+" "+data.camDir.z+") ("+direction.x+" "+direction.y+" "+direction.z+")")
 
-    // var matrix = new THREE.Matrix4();
-    // matrix.extractRotation( shootingPlayer.mesh.matrix );
-    //
-    // var direction = new THREE.Vector3( 0, 0, -1 );
-    // direction = direction.applyQuaternion(shootingPlayer.mesh.quaternion);//matrix.multiplyVector3( direction );
-    //
-    // raycaster.set(shootingPlayer.mesh.position, direction)
-    raycaster.set(camera.getWorldPosition(), camera.getWorldDirection())
+    //TODO Set near and far for gun ranges
+    raycaster.set(shootingPlayer.body.position, data.camDir)
     var objects = getRemotePlayerObjects()
     var intersects = raycaster.intersectObjects(objects)
 
     if(intersects.length > 0){
       var shotPlayerMesh = intersects[0].object
       var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
-      console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
+      // console.log(shootingPlayer.id+" hit "+shotPlayer.id)
+      this.emit("hit player", {players: [shotPlayer.id]})
     }
   }
 }
@@ -513,12 +531,13 @@ this.createSlope = function(width, height){
   }
 
   this.updatePhysics = function(){
+    cw.world.step(dt)
+
     for(var i = 0; i < players.length; i++){
       var player = players[i]
       player.mesh.position.copy(player.body.position)
     }
     playerScene.updateMatrixWorld(true)
-    cw.world.step(dt)
   }
 
   this.getRandomInt = function(min, max) {
