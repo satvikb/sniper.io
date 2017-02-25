@@ -173,14 +173,10 @@ function onJoinGame(data){
 }
 
 function onHitPlayer(data){
-  var hitPlayer = playerById(data.id)
+  var hitPlayer = playerById(data.players[0])
 
   if(!hitPlayer && socket.id != data.id){
     console.log("(hit) player not found: "+data.id)
-  }
-
-  if(socket.id == data.id){
-    console.log("You've been hit!")
   }
 }
 
