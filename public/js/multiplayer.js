@@ -17,6 +17,8 @@ function setSocketEventHandlers(){
   socket.on("hit player", onHitPlayer);
   socket.on("remove player", onRemovePlayer);
 
+  socket.on("look player", onLookPlayer)
+
   socket.on("chatMessage", chatMessage)
 }
 
@@ -64,7 +66,7 @@ function onNewPlayer(data) {
     body.updateMassProperties();
 
     // var shape = new THREE.BoxGeometry(bodyShape.radius, 32, 32);
-    var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshLambertMaterial({color: 0xffffff}) );
+    var mesh = new THREE.Mesh( ballGeometry, shaderMaterial)//new THREE.MeshLambertMaterial({color: 0xffffff}) );
 
     var nameTag = makeTextLabelSprite(data.nickname);
   	nameTag.position.set(data.x, data.y+radius*1.25, data.z);
@@ -82,6 +84,11 @@ function onNewPlayer(data) {
     remotePlayers.push(newPlayer)
   }
 };
+
+function onLookPlayer(data){
+  // var rot = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w))
+  controls.updateRotation(data)
+}
 
 function makeTextLabelSprite( message, parameters ) {
   var canvas = document.createElement('canvas')

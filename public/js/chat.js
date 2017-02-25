@@ -28,6 +28,7 @@ function showChatfield(){
   chatField.value = ""
   chatField.style.display = ""
   chatField.focus()
+  chatField.value = ""
   chatting = true;
 }
 

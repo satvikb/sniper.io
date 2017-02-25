@@ -9,10 +9,39 @@
     height: 100%;
   }
   body {
-    background-color: #ffffff;
+    background-color: #000;
     margin: 0;
     overflow: hidden;
     font-family: arial;
+  }
+
+  #progress {
+    position: absolute;
+    width: 50%;
+    height: 10%;
+    left: 25%;
+    top: 45%;
+    background: #000;
+    border: 2px solid #000;
+  }
+
+  #progressBar {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    left: 0%;
+    top: 0%;
+    background: red;
+    border: none;
+    z-index: 0;
+  }
+
+  #progress p{
+    position: relative;
+    text-align: center;
+    font-size: 24px;
+    color: #fff;
+    z-index: 10;
   }
 
   #blocker {
@@ -71,8 +100,8 @@
   #nickname{
     position: absolute;
     top: 35%;
-    left: 45%;
-    width: 10%;
+    left: 35%;
+    width: 30%;
     height: 5%;
     z-index: 5000;
     border-width: 2px;
@@ -84,32 +113,9 @@
     text-align: left;
   }
 
-  /*#chat{
-    position: absolute;
-    top: 25%;
-    left: 0%;
-    width: 22.5%;
-    height: 50%;
-    z-index: 5000;
-    border-width: 0px;
-    color: black;
-    font-size: 12px;
-    text-align: left;
-    background: rgba(61, 61, 61, 0.5);
-  }*/
-
-  /*#chat p{*/
-    /*position: relative;
-    overflow: auto;
-    bottom: 0*/
-    /*vertical-align: bottom;
-    display: table-cell;
-    padding-left: 2%;
-    width: 100%*/
-  /*}*/
-
   .chatWrapper {
     position: absolute;
+    overflow: scroll;
     top: 25%;
     left: 0%;
     width: 20%;
@@ -129,14 +135,15 @@
 
   .chatBox div{
     word-break: break-all;
+    color: #fff;
   }
 
   .chatField {
     position: absolute;
     top:100%;
-    left: 0%;
+    left: 5%;
     height: 7.5%;
-    width: 100%;
+    width: 95%;
     z-index: 5001;
     font-size: 12px;
     text-align: left;
@@ -144,6 +151,8 @@
     outline: none;
 
     background: rgba(61, 61, 61, 0.85);
+
+    color: #fff;
   }
 
   #canvasContainer {
@@ -159,6 +168,9 @@
   <script src="http://sniper.satvik.co/debug/Stats.js"></script>
   <script src="http://sniper.satvik.co/debug/CannonDebugRenderer.js"></script>
 
+  <script src="http://sniper.satvik.co/js/assets.js"></script>
+  <script src="http://sniper.satvik.co/js/loader.js"></script>
+  <script src="http://sniper.satvik.co/js/lobby.js"></script>
   <script src="http://sniper.satvik.co/js/keys.js"></script>
   <script src="http://sniper.satvik.co/js/pointerlockcontrols.js"></script>
   <script src="http://sniper.satvik.co/js/stage.js"></script>
@@ -167,6 +179,7 @@
   <script src="http://sniper.satvik.co/js/remotePlayer.js"></script>
   <script src="http://sniper.satvik.co/js/chat.js"></script>
 
+
   <div id="blocker" style="z-index: 3000; display: none; ">
     <div id="instructions">
       <span style="font-size:40px; ">SNIPER.IO</span>
@@ -174,36 +187,18 @@
       (W,A,S,D : Move, SPACE : Jump, MOUSE : Look, CLICK : Shoot, L-Shift : Scope, T: Chat)
     </div>
   </div>
-  <script>
-  function play(){
-    console.log("play")
-    var nickname = document.getElementById('nickname').value
-    // var nickname = rawNickname == "" ? "Untitled" : rawNickname
-    socket.emit("joinGame", {id: socket.id, nickname: nickname})
-    document.getElementById("lobby").style.display = 'none'
-    blocker.style.display = ''
-    chatWrapper.style.display = ''
-  }
-  </script>
-  <div id="lobby">
-    <input type="text" id="nickname" placeholder="Nickname" maxlength="6"></input>
-    <button id="playButton" onclick="play();">Play</button>
-  </div>
 <script>
-var sphereShape, sphereBody, physicsMaterial;
+var sphereShape, sphereBody//, physicsMaterial;
 var cannonDebugRenderer;
 var spectateCamera;
 var camera, scene, renderer, raycaster;
-var geometry, material, mesh;
+var geometry, mesh;
 // var width, height;
 
 var controls,time = Date.now();
 var blocker = document.getElementById( 'blocker' );
 
 var dt = 1/60;
-
-init();
-animate();
 
 function init() {
 
@@ -252,22 +247,11 @@ function init() {
 
 
   // floor
-  var loader = new THREE.TextureLoader();
-
-  loader.load('http://sniper.satvik.co/assets/textures/floor.jpg', function ( texture ) {
-    texture.wrapS = THREE.RepeatWrapping
-    texture.wrapT = THREE.RepeatWrapping
-    texture.magFilter = THREE.NearestFilter;
-    texture.minFilter = THREE.LinearMipMapLinearFilter;
-    texture.repeat.set(10, 10)
-
-    geometry = new THREE.PlaneGeometry( 100, 100, 10, 10);
-    geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
-    material = new THREE.MeshLambertMaterial( { map: texture } );
-    mesh = new THREE.Mesh( geometry, material );
-    mesh.receiveShadow = true;
-    scene.add( mesh );
-  })
+  geometry = new THREE.PlaneGeometry( 100, 100, 10, 10);
+  geometry.applyMatrix( new THREE.Matrix4().makeRotationX( - Math.PI / 2 ) );
+  mesh = new THREE.Mesh( geometry, floorMaterial );
+  mesh.receiveShadow = true;
+  scene.add( mesh );
 
   raycaster = new THREE.Raycaster()
 
@@ -337,42 +321,42 @@ function initPointerLock(){
 var angle = 0
 
 function animate() {
-  stats.begin()
+  if(loaded){
+    stats.begin()
+
+    if(inGame){
+      var dt = Date.now() - time
+      controls.update( dt );
+
+      var inputs = controls.inputs()
+
+      //TODO Test if mouse moved
+      // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
+        socket.emit("move player", {id: socket.id, inputs: inputs});
+      // }
 
 
-  if(inGame){
-    var dt = Date.now() - time
-    controls.update( dt );
+      // testLatency();
 
-    var inputs = controls.inputs()
+      renderer.render( scene, camera );
+      drawOverlay()
+    }else{
+      spectateCamera.position.x = 50*Math.cos(angle)
+      spectateCamera.position.z = 50*Math.sin(angle)
+      angle += 0.002
+      spectateCamera.lookAt(new THREE.Vector3(0, 0, 0))
 
-    //TODO Test if mouse moved
-    // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
-      socket.emit("move player", {id: socket.id, inputs: inputs});
-    // }
+      renderer.render( scene, spectateCamera );
+    }
 
+    if(cannonDebugRenderer)
+      // cannonDebugRenderer.update()
 
-    // testLatency();
+    stats.end()
+    time = Date.now();
 
-    renderer.render( scene, camera );
-    drawOverlay()
-  }else{
-    spectateCamera.position.x = 50*Math.cos(angle)
-    spectateCamera.position.z = 50*Math.sin(angle)
-    angle += 0.002
-    spectateCamera.lookAt(new THREE.Vector3(0, 0, 0))
-
-    renderer.render( scene, spectateCamera );
+    requestAnimationFrame( animate );
   }
-
-  if(cannonDebugRenderer)
-    // cannonDebugRenderer.update()
-
-
-  stats.end()
-  time = Date.now();
-
-  requestAnimationFrame( animate );
 }
 
 //TODO Do hit test on server side
