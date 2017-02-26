@@ -6,6 +6,8 @@ var port = process.env.PORT || 8000;
 var THREE = require('three');
 var CANNON = require('cannon');
 
+var MAX_PLAYERS = 12
+
 var playerScene;
 var raycaster;
 var camera;
@@ -16,6 +18,7 @@ var util = require("util")
 var socket = require("socket.io").listen(server, {origins:'sniper.satvik.co:*'})
 
 var game;
+var gunManager;
 
 function init() {
   players = [];
@@ -25,6 +28,7 @@ function init() {
   raycaster = new THREE.Raycaster()
 
   game = new Game()
+  gunManager = new GunManager();
 
   setEventHandlers();
 
@@ -78,16 +82,24 @@ var ballGeometry = new THREE.SphereGeometry(radius, 16, 16);
 
 function onJoinGame(data){
   //TODO Pick a server, test for availability, etc.
-  var playerId = data.id
-  var nickname = data.nickname == "" ? "player" : data.nickname
-  nickname.length > 8 ? nickname.substring(0, 8) : nickname
+  if(gameAvailable()){
+    var playerId = data.id
+    var nickname = data.nickname == "" ? "player" : data.nickname
+    nickname.length > 8 ? nickname.substring(0, 8) : nickname
 
-  var gameId = 0
-  //TODO: prevent username from being changed when sent to client side to be sent back here
-  this.emit('joinGame', {gameId: gameId, nickname: nickname, mass: mass})
+    var gameId = 0
+    //TODO: prevent username from being changed when sent to client side to be sent back here
+    this.emit('joinGame', {gameId: gameId, nickname: nickname, mass: mass})
+  }
+}
+
+function gameAvailable(){
+  return players.length <= MAX_PLAYERS
 }
 
 function onClientDisconnect() {
+  clients.splice(clients.indexOf(this.id), 1);
+
   var removePlayer = playerById(this.id);
 
   util.log("Client has disconnected: "+removePlayer.nickname+" ("+this.id+")");
@@ -100,7 +112,6 @@ function onClientDisconnect() {
   game.removePhysicsBody(removePlayer.body)
 
   players.splice(players.indexOf(removePlayer), 1);
-  clients.splice(clients.indexOf(this.id), 1);
 
   this.broadcast.emit("remove player", {id: this.id});
 };
@@ -125,8 +136,11 @@ function onNewPlayer(data) {
 
   var mesh = new THREE.Mesh( ballGeometry, new THREE.MeshBasicMaterial({}) );
 
-  var newPlayer = new Player(this.id, body, mesh, data.nickname);
+  var newPlayer = new Player(data.id, body, mesh, data.nickname);
   newPlayer.camRotation = rotation
+  console.log("Test Gun: "+JSON.stringify(gunManager.testGun)+" Ammo: "+gunManager.testGun.name)
+  newPlayer.setGun(gunManager.testGun)
+
 
   newPlayer.body.addShape(bodyShape);
   game.addPhysicsBody(newPlayer.body)
@@ -135,13 +149,13 @@ function onNewPlayer(data) {
   // newPlayer.setPosition(new CANNON.Vec3(0, 4, 0))
 
   //Tell all other players about the newbie
-  this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass});
+  this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass, playerData: newPlayer.playerData});
 
   //Tell the new player of all the current players
   var i, existingPlayer;
   for (i = 0; i < players.length; i++) {
     existingPlayer = players[i];
-    this.emit("new player", {id: existingPlayer.id, nickname: existingPlayer.nickname, x: existingPlayer.body.position.x, y: existingPlayer.body.y, z: existingPlayer.body.z, mass: mass});
+    this.emit("new player", {id: existingPlayer.id, nickname: existingPlayer.nickname, x: existingPlayer.body.position.x, y: existingPlayer.body.y, z: existingPlayer.body.z, mass: mass, playerData: existingPlayer.playerData});
   };
 
   players.push(newPlayer);
@@ -207,6 +221,7 @@ function sendUpdate(){
       plData.id = players[i].id
       plData.position = players[i].body.position
       plData.quat = players[i].body.quaternion
+      plData.playerData = players[i].playerData
       updateData.push(plData)
     }
     return updateData;
@@ -236,23 +251,24 @@ function playerShoot(data){
   var shootingPlayer = playerById(data.id)
 
   if(shootingPlayer){
-    // var direction = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(shootingPlayer.camRotation.x, shootingPlayer.camRotation.y, shootingPlayer.camRotation.z))
-    // data.camDir.normalize()
-    // console.log("shooting ("+shootingPlayer.id +") ("+data.camDir.x+" "+data.camDir.y+" "+data.camDir.z+") ("+direction.x+" "+direction.y+" "+direction.z+")")
+    if(shootingPlayer.playerData.ammo > 0){
+      shootingPlayer.playerData.ammo -= 1
 
-    //TODO Set near and far for gun ranges
-    raycaster.set(shootingPlayer.body.position, data.camDir)
-    var objects = getRemotePlayerObjects()
-    var intersects = raycaster.intersectObjects(objects)
+      //TODO Set near and far for gun ranges
+      raycaster.set(shootingPlayer.body.position, data.camDir)
+      var objects = getRemotePlayerObjects()
+      var intersects = raycaster.intersectObjects(objects)
 
-    if(intersects.length > 0){
-      var shotPlayerMesh = intersects[0].object
-      var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
+      if(intersects.length > 0){
+        var shotPlayerMesh = intersects[0].object
+        var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
 
-      if(shotPlayer){
-        // console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
-        sendActualChatMessage({from: "server", msg: shootingPlayer.nickname+" hit "+shotPlayer.nickname+"!"})
-        this.emit("hit player", {players: [shotPlayer.id]})
+        if(shotPlayer){
+          // console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
+          sendActualChatMessage({from: "server", msg: shootingPlayer.nickname+" hit "+shotPlayer.nickname+"!"})
+          shootingPlayer.playerData.score += 5
+          this.emit("hit player", {players: [shotPlayer.id]})
+        }
       }
     }
   }
@@ -566,11 +582,10 @@ this.createSlope = function(width, height){
 function Player(id, body, mesh, nickname) {
   var that = this
 
-  this.gameData = {
+  this.playerData = {
     health: 100,
-    gun: 0,
+    gun: {},
     score: 0,
-    maxAmmo: 0,
     ammo: 0
   }
 
@@ -591,12 +606,6 @@ function Player(id, body, mesh, nickname) {
 
   this.canJump = true
 
-  //use sparingly
-  this.setPosition = function(pos){
-    position = pos
-    body.position.set(pos);
-  }
-
   this.contactNormal = new CANNON.Vec3(); // Normal in the contact, pointing *out* of whatever the player touched
   this.upAxis = new CANNON.Vec3(0,1,0);
 
@@ -615,6 +624,16 @@ function Player(id, body, mesh, nickname) {
 
   body.addEventListener("collide", collide)
 };
+
+Player.prototype.setPosition = function(pos){
+  position = pos
+  body.position.set(pos);
+}
+
+Player.prototype.setGun = function(gun){
+  this.playerData.gun = gun
+  this.playerData.ammo = gun.maxAmmo
+}
 
 Player.prototype.move = function(inputs, dt){
   dt *= 0.1;
@@ -658,6 +677,23 @@ Player.prototype.move = function(inputs, dt){
   this.velocity.z += this.inputVelocity.z
 
   // mesh.position.copy(body.position)
+}
+
+function Gun(id, name, maxAmmo, basicDamage, specialDamage, shootSpeed, scopeType){
+  // this.id = id
+  // this.name = name
+  // this.maxAmmo = maxAmmo
+  // this.basicDamage = basicDamage
+  // this.specialDamage = specialDamage
+  // this.shootSpeed = shootSpeed
+  // this.scopeType = scopeType
+
+  return {id: id, name: name, maxAmmo: maxAmmo, basicDamage: basicDamage, specialDamage: specialDamage, shootSpeed: shootSpeed, scopeType: scopeType}
+}
+
+
+function GunManager(){
+  this.testGun = Gun(0, "Tomcat", 12, 5, {head: 1}, 1, 0);
 }
 
 init();

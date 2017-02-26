@@ -158,11 +158,42 @@
   #canvasContainer {
     z-index: -10
   }
+
+  #stats{
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  .playerStatWrapper {
+    position: absolute;
+    z-index: 5001;
+
+    bottom: 0%;
+    left: 0%;
+    height: 25%;
+    width: 30%;
+    background: rgba(0, 0, 0, 0);
+  }
+
+  .playerStatBox {
+    position: absolute;
+    bottom: 0;
+    left: 5%;
+    width: 95%;
+  }
+
+  .playerStatBox div{
+    color: #fff;
+    font-size: 26px;
+  }
+
   </style>
 </head>
 <body>
   <script src="http://sniper.satvik.co/socket.io/socket.io.js"></script>
   <script src="http://sniper.satvik.co/libraries/three.min.js"></script>
+  <script src="http://sniper.satvik.co/libraries/OBJLoader.js"></script>
   <script src="http://sniper.satvik.co/libraries/cannon.min.js"></script>
 
   <script src="http://sniper.satvik.co/debug/Stats.js"></script>
@@ -175,9 +206,12 @@
   <script src="http://sniper.satvik.co/js/pointerlockcontrols.js"></script>
   <script src="http://sniper.satvik.co/js/stage.js"></script>
   <script src="http://sniper.satvik.co/js/multiplayer.js"></script>
+  <script src="http://sniper.satvik.co/js/guns.js"></script>
   <script src="http://sniper.satvik.co/js/hud.js"></script>
   <script src="http://sniper.satvik.co/js/remotePlayer.js"></script>
   <script src="http://sniper.satvik.co/js/chat.js"></script>
+  <script src="http://sniper.satvik.co/js/stats.js"></script>
+  <script src="http://sniper.satvik.co/js/shooting.js"></script>
 
 
   <div id="blocker" style="z-index: 3000; display: none; ">
@@ -215,7 +249,7 @@ function init() {
   spectateCamera.lookAt(new THREE.Vector3(0, 0, 0))
   scene.add(spectateCamera)
 
-  camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+  camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.001, 1000 );
 
   var hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 0.6 );
   hemiLight.color.setHSL( 0.6, 1, 0.6 );
@@ -245,6 +279,8 @@ function init() {
   // var helper = new THREE.DirectionalLightHelper( dirLight );
   // scene.add(helper);
 
+  // scene.add(new THREE.Mesh(gunTest, new THREE.MeshBasicMaterial({})))
+  // scene.add(gunTest)
 
   // floor
   geometry = new THREE.PlaneGeometry( 100, 100, 10, 10);
@@ -261,8 +297,8 @@ function init() {
 
   renderer.setSize( window.innerWidth, window.innerHeight );
 
-  // var axisHelper = new THREE.AxisHelper( 7 );
-  // scene.add( axisHelper );
+  var axisHelper = new THREE.AxisHelper( 7 );
+  scene.add( axisHelper );
 
   window.addEventListener( 'resize', onWindowResize, false );
 
@@ -338,6 +374,8 @@ function animate() {
 
       // testLatency();
 
+      updateBullets();
+
       renderer.render( scene, camera );
       drawOverlay()
     }else{
@@ -359,15 +397,7 @@ function animate() {
   }
 }
 
-//TODO Do hit test on server side
-window.addEventListener("click",function(e){
-  if(inGame){
-    if(controls.enabled == true){
-      var d = camera.getWorldDirection();
-      socket.emit("shoot", {id: socket.id, camDir: d})
-    }
-  }
-});
+
 
 </script>
 </body>

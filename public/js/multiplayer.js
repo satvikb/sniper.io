@@ -74,6 +74,7 @@ function onNewPlayer(data) {
     var newPlayer = new RemotePlayer(body, mesh, nameTag)
     newPlayer.id = data.id
     newPlayer.nickname = data.nickname
+    newPlayer.playerData = data.playerData
 
     newPlayer.setPos(new CANNON.Vec3(data.x, data.y, data.z))
 
@@ -126,13 +127,18 @@ function onUpdatePlayers(data){
         return
       }
 
+      var playerStats = playerData[p].playerData
+
       var position = playerData[p].position
       var quat = playerData[p].quat
 
       if(socket.id == id){
+        localPlayer.playerData = playerStats
         localPlayer.setPos(position)
         localPlayer.setQuat(quat)
+        updateStats({score: playerStats.score, ammo: playerStats.ammo, gunName: playerStats.gun.name, maxAmmo: playerStats.gun.maxAmmo})
       }else{
+        player.playerData = playerStats
         player.setPos(position)
         player.setQuat(quat)
         if(player.nameTag) player.nameTag.position.set(position.x, position.y+radius*1.25, position.z)

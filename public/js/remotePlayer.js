@@ -4,6 +4,8 @@ function RemotePlayer(body, mesh, nameTag) {
   this.mesh = mesh
   this.nameTag = nameTag
   this.nickname
+
+  this.playerData
 }
 
 RemotePlayer.prototype.setPos = function(pos){
@@ -24,4 +26,11 @@ RemotePlayer.prototype.setQuat = function(quat){
   if(this.mesh){
     this.mesh.quaternion.copy(this.body.quaternion)
   }
+}
+
+RemotePlayer.prototype.setGun = function(gun){
+  //TODO Change gun mesh
+
+  this.playerData.gun = gun
+  this.playerData.ammo = gun.ammo
 }

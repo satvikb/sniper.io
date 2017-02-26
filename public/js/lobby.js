@@ -6,6 +6,8 @@ function play(){
   lobbyDiv.style.display = 'none'
   blocker.style.display = ''
   chatWrapper.style.display = ''
+
+  showPlayerStats()
 }
 
 var lobbyDiv;

@@ -14,6 +14,13 @@
     yawObject.position.y = 2;
     yawObject.add( pitchObject );
 
+    gunTest.rotateY(-Math.PI*0.45)
+    gunTest.scale.set(0.1, 0.1, 0.1)
+    gunTest.position.x = 0.095
+    gunTest.position.z = 0.05
+    gunTest.position.y = -0.175
+    pitchObject.add(gunTest)
+
     var quat = new THREE.Quaternion();
 
     var moveForward = false;
@@ -169,6 +176,10 @@
     this.getObject = function () {
         return yawObject;
     };
+
+    this.getPitch = function () {
+      return pitchObject;
+    }
 
     this.isScoping = function(){
        return scoping
