@@ -19,7 +19,7 @@ document.body.appendChild(progress);
 var manager = new THREE.LoadingManager();
 var texLoader = new THREE.TextureLoader(manager);
 var fileLoader = new THREE.FileLoader(manager);
-
+var objLoader = new THREE.OBJLoader(manager);
 
 manager.onProgress = function ( item, loaded, total ) {
   progressBar.style.width = (loaded / total * 100) + '%';
@@ -27,8 +27,6 @@ manager.onProgress = function ( item, loaded, total ) {
 };
 
 manager.onLoad = function(){
-  // console.log("Loaded all files")
-
   init();
   text.innerHTML = "loading stage"
 }
@@ -62,6 +60,21 @@ ShaderLoader("http://sniper.satvik.co/shaders/vertex.js", "http://sniper.satvik.
   shaderMaterial = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment });
 })
 
+ShaderLoader("http://sniper.satvik.co/shaders/bulletVertex.js", "http://sniper.satvik.co/shaders/bulletFragment.js", function(vertex, fragment){
+  bulletMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      "c": {type: "f", value: 0.1},
+      "p":   { type: "f", value: 2.1 },
+      glowColor: { type: "c", value: new THREE.Color(0xffff00) },
+			viewVector: { type: "v3" }
+    },
+    vertexShader: vertex,
+    fragmentShader: fragment
+  });
+  bulletMaterial.side = THREE.FrontSide;
+  bulletMaterial.blending = THREE.AdditiveBlending;
+})
+
 function ShaderLoader(vertex_url, fragment_url, onLoad, onProgress, onError) {
     // fileLoader.setResponseType('text');
     fileLoader.load(vertex_url, function (vertex_text) {
@@ -71,6 +84,10 @@ function ShaderLoader(vertex_url, fragment_url, onLoad, onProgress, onError) {
         });
     }, onProgress, onError);
 }
+
+objLoader.load("http://sniper.satvik.co/assets/models/gun.obj", function(obj){
+  gunTest = obj
+})
 
 // function addRandomPlaceHoldItImage(){
 //   var r = Math.round(Math.random() * 4000);

@@ -4,7 +4,7 @@ var overlay = null;
 var scopingOverlay = null, scopingContext;
 var crosshairOverlay = null, crosshairContext;
 var weaponOverlay = null, weaponContext;
-var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
+// var weapon = new Bitmap('assets/GunSmall.png', 16, 10);
 
 var stats = new Stats();
 
@@ -30,9 +30,13 @@ function initHUD(){
   }
 
   createChatElement()
+  createPlayerStats()
 
-  stats.showPanel( 0 ); // 0: fps, 1: ms, 2: mb, 3+: custom
-  document.body.appendChild( stats.dom );
+  stats.showPanel( 1 ); // 0: fps, 1: ms, 2: mb, 3+: custom
+  var stat = document.createElement('div')
+  stat.id = "stats"
+  stat.appendChild( stats.dom );
+  document.body.appendChild(stat)
 }
 
 function createOverlay(mainCanvas){

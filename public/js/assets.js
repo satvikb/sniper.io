@@ -3,3 +3,6 @@ var cubeMaterial;
 var floorMaterial;
 
 var shaderMaterial;
+var bulletMaterial;
+
+var gunTest;
