@@ -59,3 +59,12 @@ function updateBullets(){
     }
   }
 }
+
+function reloadGun(){
+  socket.emit("reload", {id: socket.id})
+  // playerAmmoStat.innerHTML = "reloading..."
+}
+
+function playerReload(data){
+  localPlayer.playerData.ammo = data.ammo
+}

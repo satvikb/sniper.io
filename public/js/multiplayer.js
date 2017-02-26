@@ -17,6 +17,8 @@ function setSocketEventHandlers(){
   socket.on("hit player", onHitPlayer);
   socket.on("remove player", onRemovePlayer);
 
+  socket.on("reload", playerReload)
+
   socket.on("look player", onLookPlayer)
 
   socket.on("chatMessage", chatMessage)
