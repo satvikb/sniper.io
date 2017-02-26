@@ -54,6 +54,8 @@ function onSocketConnection(client) {
   })
 
   client.on("shoot", playerShoot)
+  client.on("reload", playerReload)
+
   client.on("look player", onLookPlayer)
 
   client.on("hit player", onHitPlayer);
@@ -70,6 +72,28 @@ function chatMessage(data){
 
       sendActualChatMessage({from: player.nickname, msg: data.msg})
     }
+  }
+}
+
+function playerReload(data){
+  var player = playerById(data.id)
+
+  if(player){
+    player.reloading = true
+    var reloadSpeed = player.playerData.gun.reloadSpeed
+
+    function reload(s){
+      if(player.reloading == true){
+        if(player.playerData.ammo < player.playerData.gun.maxAmmo){
+          player.playerData.ammo += 1
+          s.emit("reload", {ammo: player.playerData.ammo})
+          setTimeout(reload, reloadSpeed, s)
+        }
+      }
+    }
+
+    var timeToReloadAllBullets = (player.playerData.gun.reloadSpeed*(player.playerData.gun.maxAmmo - player.playerData.ammo))
+    setTimeout(reload, reloadSpeed, this)
   }
 }
 
@@ -597,6 +621,8 @@ function Player(id, body, mesh, nickname) {
   this.body = body
   this.mesh = mesh
 
+  this.reloading = false
+
   this.velocity = body.velocity
 
   // var inputVelocity = new CANNON.Vec3();
@@ -679,7 +705,7 @@ Player.prototype.move = function(inputs, dt){
   // mesh.position.copy(body.position)
 }
 
-function Gun(id, name, maxAmmo, basicDamage, specialDamage, shootSpeed, scopeType){
+function Gun(id, name, maxAmmo, basicDamage, specialDamage, shootSpeed, scopeType, reloadSpeed){
   // this.id = id
   // this.name = name
   // this.maxAmmo = maxAmmo
@@ -688,12 +714,12 @@ function Gun(id, name, maxAmmo, basicDamage, specialDamage, shootSpeed, scopeTyp
   // this.shootSpeed = shootSpeed
   // this.scopeType = scopeType
 
-  return {id: id, name: name, maxAmmo: maxAmmo, basicDamage: basicDamage, specialDamage: specialDamage, shootSpeed: shootSpeed, scopeType: scopeType}
+  return {id: id, name: name, maxAmmo: maxAmmo, basicDamage: basicDamage, specialDamage: specialDamage, shootSpeed: shootSpeed, scopeType: scopeType, reloadSpeed: reloadSpeed}
 }
 
 
 function GunManager(){
-  this.testGun = Gun(0, "Tomcat", 12, 5, {head: 1}, 1, 0);
+  this.testGun = Gun(0, "Tomcat", 12, 5, {head: 1}, 1, 0, 500);
 }
 
 init();

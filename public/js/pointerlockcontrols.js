@@ -70,10 +70,11 @@
 
         socket.emit("look player", {id: socket.id, movementX: movementX, movementY: movementY})
 
-        // yawObject.rotation.y -= movementX * currentSensitivity;
-        // pitchObject.rotation.x -= movementY * currentSensitivity;
-        //
-        // pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+        //client interploration
+        yawObject.rotation.y -= movementX * currentSensitivity;
+        pitchObject.rotation.x -= movementY * currentSensitivity;
+
+        pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
     };
 
     this.updateRotation = function(data){
@@ -113,6 +114,9 @@
             if(chatting){
               sendChatMessage()
             }
+            break;
+          case keys.reload:
+            reloadGun()
             break;
         }
 
