@@ -118,6 +118,9 @@
           case keys.reload:
             reloadGun()
             break;
+          // case keys.hide:
+          //   toggleExtras()
+          //   break;
         }
 
         //scope

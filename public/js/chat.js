@@ -25,6 +25,10 @@ function createChatElement(){
 }
 
 function showChatfield(){
+  // if(hidden == true){
+  //   toggleExtras()
+  // }
+
   chatField.value = ""
   chatField.style.display = ""
   chatField.focus()

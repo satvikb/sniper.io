@@ -15,10 +15,10 @@ var bullets = [];
 
 function addBullet(){
   // bulletMaterial.uniforms.viewVector.type = "v3"
-  bulletMaterial.uniforms.viewVector.value = controls.getObject().position
+  // bulletMaterial.uniforms.viewVector.value = controls.getObject().position
 
   var bulletGeom = new THREE.SphereGeometry(0.05, 8, 8)//new THREE.BoxGeometry(0.05, 0.05, 1)
-  var bullet = new THREE.Mesh(bulletGeom, bulletMaterial.clone())
+  var bullet = new THREE.Mesh(bulletGeom, new THREE.MeshBasicMaterial({color: 0xffff00}))//bulletMaterial.clone())
   // var bulletGlow = new THREE.Mesh(bulletGeom.clone(), bulletMaterial)
   // bulletGlow.scale.multiplyScalar(1.5)
   // bullet.add(bulletGlow)
@@ -55,16 +55,16 @@ function updateBullets(){
       }
 
       bullet.position.add(bullet.velocity)
-      bullet.material.uniforms.viewVector.value = new THREE.Vector3().subVectors(controls.getObject().position, bullet.position)
+      // bullet.material.uniforms.viewVector.value = new THREE.Vector3().subVectors(controls.getObject().position, bullet.position)
     }
   }
 }
 
 function reloadGun(){
-  socket.emit("reload", {id: socket.id})
-  // playerAmmoStat.innerHTML = "reloading..."
+  socket.emit("reload", {id: socket.id});
+  playerAmmoStat.innerHTML = "reloading..."
 }
 
 function playerReload(data){
-  localPlayer.playerData.ammo = data.ammo
+  // localPlayer.playerData.ammo = data.ammo
 }
