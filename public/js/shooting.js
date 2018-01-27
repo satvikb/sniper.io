@@ -1,14 +1,6 @@
 window.addEventListener("click",function(e){
   e.preventDefault()
-  if(inGame){
-    if(controls.enabled == true){
-      if(localPlayer.playerData.ammo > 0){
-        var d = camera.getWorldDirection();
-        socket.emit("shoot", {id: socket.id, camDir: d})
-        addBullet()
-      }
-    }
-  }
+
 });
 
 var bullets = [];
@@ -33,7 +25,8 @@ function addBullet(){
   bullet.quaternion.copy(quaternion)
   bullet.rotateY(-Math.PI/2)
 
-  bullet.velocity = new THREE.Vector3(-Math.sin(controls.getObject().rotation.y), Math.sin(controls.getPitch().rotation.x), -Math.cos(controls.getObject().rotation.y))
+  var speed = 2.5
+  bullet.velocity = new THREE.Vector3(-Math.sin(controls.getObject().rotation.y)*speed, Math.sin(controls.getPitch().rotation.x)*speed, -Math.cos(controls.getObject().rotation.y)*speed)
   bullet.alive = true
   setTimeout(function(){
     bullet.alive = false

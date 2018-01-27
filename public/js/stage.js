@@ -9,6 +9,9 @@ var boundaryThickness;
 var boundaryHeight;
 var boundaryWhitespace;
 
+var terrainHeight;
+var terrainScale;
+
 var slopeData;
 
 var stage = new THREE.Geometry()
@@ -30,11 +33,6 @@ function initMap(){
   cw.world.solver = solver;
   cw.world.gravity.set(0,-30,0);
   cw.world.broadphase = new CANNON.NaiveBroadphase();
-  // Create a slippery material (friction coefficient = 0.0)
-  // physicsMaterial = new CANNON.Material("slipperyMaterial");
-  // var physicsContactMaterial = new CANNON.ContactMaterial(physicsMaterial, physicsMaterial, 0.0, 0.3);
-  // // We must add the contact materials to the world
-  // cw.world.addContactMaterial(physicsContactMaterial);
 
   //Ground plane
   var groundShape = new CANNON.Plane(); //inf size
@@ -107,138 +105,75 @@ function createStage(){
     scene.add(line)
   }
 
-  slopeData = createSlope(tileWidth, tileHeight)
+  // Create the heightfield
+  var sizeX = map[0].length
+  var sizeY = map[1].length;
+  var hfShape = new CANNON.Heightfield(map, {
+      elementSize: terrainScale
+  });
+  var hfBody = new CANNON.Body({ mass: 0 });
+  hfBody.addShape(hfShape);
+  hfBody.position.set((-sizeX * hfShape.elementSize) / 2, 0, (sizeY * hfShape.elementSize) / 2);
+  hfBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), (-Math.PI/2))
+  addPhysicsBody(hfBody);
 
-  // console.log("Layers: "+map.length)
 
-  for(var l = 0; l < map.length; l++){
-    for(var x = 0; x < n; x++){
-      for(var y = 0; y < n; y++){
-        if(map[l][x][y] > 0){
-          createTile(x,y,l)
-        }
+
+
+  var geometry = new THREE.Geometry();
+
+  var v0 = new CANNON.Vec3();
+  var v1 = new CANNON.Vec3();
+  var v2 = new CANNON.Vec3();
+
+  console.log("Terrain Height: "+terrainHeight)
+
+  for (var xi = 0; xi < hfShape.data.length - 1; xi++) {
+    for (var yi = 0; yi < hfShape.data[xi].length - 1; yi++) {
+      for (var k = 0; k < 2; k++) {
+        var colA = new THREE.Color("rgb(139, 69, 19)")
+        var colB = new THREE.Color(1, 1, 1)
+        hfShape.getConvexTrianglePillar(xi, yi, k===0);
+        v0.copy(hfShape.pillarConvex.vertices[0]);
+        v1.copy(hfShape.pillarConvex.vertices[1]);
+        v2.copy(hfShape.pillarConvex.vertices[2]);
+        v0.vadd(hfShape.pillarOffset, v0);
+        v1.vadd(hfShape.pillarOffset, v1);
+        v2.vadd(hfShape.pillarOffset, v2);
+        geometry.vertices.push(
+          new THREE.Vector3(v0.x, v0.y, v0.z),
+          new THREE.Vector3(v1.x, v1.y, v1.z),
+          new THREE.Vector3(v2.x, v2.y, v2.z)
+        );
+        var i = geometry.vertices.length - 3;
+        var face = new THREE.Face3(i, i+1, i+2)
+        face.vertexColors[0] = lerpColor(colA, colB, v0.z/terrainHeight)
+        face.vertexColors[1] = lerpColor(colA, colB, v1.z/terrainHeight)
+        face.vertexColors[2] = lerpColor(colA, colB, v2.z/terrainHeight)
+
+        geometry.faces.push(face);
       }
     }
   }
 
-  var stageMesh = new THREE.Mesh(stage, cubeMaterial)
-  // stageMesh.castShadow = true
-  // stageMesh.receiveShadow = true
-  // stageMesh.shadowBias = -0.007
-  scene.add(stageMesh)
-  // console.log("Created stage mesh")
+  geometry.computeBoundingSphere();
+  geometry.computeFaceNormals();
+  var material = new THREE.MeshLambertMaterial({vertexColors: THREE.VertexColors});
+  mesh = new THREE.Mesh(geometry, material);
+  mesh.quaternion.copy(hfBody.quaternion)
+  mesh.position.copy(hfBody.position)
+  scene.add(mesh)
+
   loadedStage()
 }
 
-function createTile(x, y, l){
-  var tile = map[l][x][y]
-  var gridPos = new CANNON.Vec3(-((x-(n/2))*tileWidth), l*tileHeight, (y-(n/2))*tileWidth)
-
-
-
-  if(tile){
-    if(tile == 0){
-      return
-    }
-
-    if(tile == 1){
-      var tWidth = tileWidth
-      var tHeight = tileHeight
-
-      var halfExtents = new CANNON.Vec3(tWidth/2, tHeight/2, tWidth/2)
-      var boxShape = new CANNON.Box(halfExtents)
-
-      var boxBody = new CANNON.Body({mass: 0})
-      boxBody.addShape(boxShape)
-      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
-
-
-      var boxGeometry = new THREE.BoxGeometry(tWidth, tHeight, tWidth);
-      var boxMesh  = new THREE.Mesh(boxGeometry, cubeMaterial)
-      boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
-      boxMesh.updateMatrix()
-      stage.merge(boxMesh.geometry, boxMesh.matrix)
-
-      addPhysicsBody(boxBody)
-    }
-
-    if(tile == 2){
-      var size = new CANNON.Vec3(tileWidth, tileHeight/8, tileWidth)
-      var halfExtents = new CANNON.Vec3(size.x/2, size.y/2, size.z/2)
-      var boxShape = new CANNON.Box(halfExtents)
-
-      var boxBody = new CANNON.Body({mass: 0})
-      boxBody.addShape(boxShape)
-      boxBody.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
-
-      var boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-      var boxMesh  = new THREE.Mesh(boxGeometry, cubeMaterial)
-      boxMesh.position.set(gridPos.x, gridPos.y+(tileHeight-size.y/2), gridPos.z)
-      boxMesh.updateMatrix()
-      stage.merge(boxMesh.geometry, boxMesh.matrix)
-
-      addPhysicsBody(boxBody)
-    }
-
-    //Slope 3-6
-    if(tile >= 3 && tile <= 6){
-      var dir = tile-3
-      var rot = (Math.PI/2)*dir
-      var slopeShape = new CANNON.ConvexPolyhedron(slopeData[0], slopeData[1])
-      var slopeBody = new CANNON.Body({mass: 0})
-      slopeBody.addShape(slopeShape)
-      slopeBody.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
-      slopeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0,1,0), rot); //Match rotaion of geometry
-      addPhysicsBody(slopeBody)
-
-      var slopeGeo = createSlopeGeo(slopeData[0], slopeData[1])
-      slopeGeo.applyMatrix( new THREE.Matrix4().makeRotationY( rot ) );
-      var mesh = new THREE.Mesh(slopeGeo, cubeMaterial)
-      mesh.position.set(gridPos.x, gridPos.y+(tileHeight/2), gridPos.z)
-
-      mesh.updateMatrix()
-      stage.merge(mesh.geometry, mesh.matrix)
-    }
-  }
+function lerpColor(a, b, t){
+  return new THREE.Color(
+    a.r + (b.r - a.r) * t,
+		a.g + (b.g - a.g) * t,
+		a.b + (b.b - a.b) * t
+  )
 }
-
-function createSlope(width, height){
-  var y2 = height/2
-  var x2 = width/2
-  var verts = [ new CANNON.Vec3(x2, -y2, -x2),
-                new CANNON.Vec3(-x2, -y2, -x2),
-                new CANNON.Vec3(-x2, -y2, x2),
-                new CANNON.Vec3(x2, -y2, x2),
-                new CANNON.Vec3(x2, y2, x2),
-                new CANNON.Vec3(-x2, y2, x2)]
-  var faces = [ [5, 4, 0],
-                [0, 1, 5],
-                [1, 0, 2],
-                [3, 2, 0],
-                [0, 4, 3],
-                [1, 2, 5],
-                [3, 4, 5],
-                [3, 5, 2]]
-  // return new CANNON.ConvexPolyhedron(verts, faces)
-  return [verts, faces]
-}
-
-function createSlopeGeo(verts, faces){
-  var slope = new THREE.Geometry()
-
-  for(var i = 0; i < verts.length; i++){
-    slope.vertices.push(new THREE.Vector3(verts[i].x, verts[i].y, verts[i].z))
-  }
-
-  for(var i = 0; i < faces.length; i++){
-    slope.faces.push(new THREE.Face3(faces[i][0], faces[i][1], faces[i][2]))
-  }
-  slope.computeFaceNormals()
-  slope.computeFlatVertexNormals()
-
-  return slope
-}
-
 
 function addPhysicsBody(body){
   cw.world.addBody(body)

@@ -73,14 +73,14 @@ function init() {
 
   renderer.setSize( window.innerWidth, window.innerHeight );
 
-  var axisHelper = new THREE.AxisHelper( 7 );
+  var axisHelper = new THREE.AxisHelper( 20 );
   scene.add( axisHelper );
 
   window.addEventListener( 'resize', onWindowResize, false );
 
   remotePlayers = [];
 
-  socket = io.connect("http://sniper.satvik.co")
+  socket = io.connect("http://localhost:8000")
   setSocketEventHandlers()
 }
 
@@ -142,9 +142,8 @@ function animate() {
 
       var inputs = controls.inputs()
 
-      //TODO Test if mouse moved
       // if(inputs.left || inputs.right || inputs.forward || inputs.backward || inputs.jump){
-        socket.emit("move player", {id: socket.id, inputs: inputs});
+        socket.emit("input", {id: socket.id, inputs: inputs});
       // }
 
 
@@ -164,7 +163,7 @@ function animate() {
     }
 
     if(cannonDebugRenderer)
-      // cannonDebugRenderer.update()
+      cannonDebugRenderer.update()
 
     stats.end()
     time = Date.now();

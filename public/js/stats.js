@@ -38,6 +38,9 @@ function showPlayerStats(){
 
 function updateStats(data){
   playerAmmoStat.innerHTML = data.ammo+" / "+data.maxAmmo
-  gunNameStat.innerHTML = data.gunName
+  // gunNameStat.innerHTML = data.gunName
+  var move = controls.getMove()
+  gunNameStat.innerHTML = move[0]+" "+move[1]
+  controls.resetMove()
   scoreStat.innerHTML = data.score
 }

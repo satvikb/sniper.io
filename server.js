@@ -5,6 +5,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 var port = process.env.PORT || 8000;
 var THREE = require('three');
 var CANNON = require('cannon');
+var getPixels = require("get-pixels")
+var ndarray = require("ndarray");
 
 var MAX_PLAYERS = 12
 
@@ -15,24 +17,59 @@ var server = require('http').createServer(app)
 var fs = require('fs')
 
 var util = require("util")
-var socket = require("socket.io").listen(server, {origins:'sniper.satvik.co:*'})
+var socket = require("socket.io").listen(server, {origins:'localhost:8000:*'})
 
 var game;
 var gunManager;
 
+var terrainHeight = 5
+var terrainScale = 2
+
 function init() {
-  players = [];
-  clients = []; //Includes connections not in game, e.g. in lobby
 
-  playerScene = new THREE.Scene();
-  raycaster = new THREE.Raycaster()
+  getPixels("extras/heightmap.jpg", function(err, pixels){
+    if(err){
+      console.log("Could not load heightmap")
+      return;
+    }
 
-  game = new Game()
-  gunManager = new GunManager();
 
-  setEventHandlers();
+    function getPixel(x, y, pixels) {
+        return pixels.get(x, y, 0);
+    }
 
-  server.listen(port);
+    console.log(getPixel(0, 0, pixels)+" width: "+pixels.shape[0])
+
+    var matrix = [];
+    var sizeX = pixels.shape[0],
+        sizeY = pixels.shape[1];
+    for (var i = 0; i < sizeX; i++) {
+        matrix.push([]);
+        for (var j = 0; j < sizeY; j++) {
+            var r = getPixel(i, j, pixels)
+            var height = r/255//avgColor(col[0], col[1], col[2])/255
+            height *= terrainHeight // Multiplier
+            // if(i===0 || i === sizeX-1 || j===0 || j === sizeY-1){
+            //   height = 0;
+            // }
+            matrix[i].push(height);
+        }
+    }
+
+    players = [];
+    clients = []; //Includes connections not in game, e.g. in lobby
+
+    playerScene = new THREE.Scene();
+    raycaster = new THREE.Raycaster()
+
+    game = new Game(matrix, terrainHeight, terrainScale)
+    gunManager = new GunManager();
+
+    setEventHandlers();
+
+    server.listen(port);
+  })
+  console.log("init")
 };
 
 var setEventHandlers = function() {
@@ -47,18 +84,18 @@ function onSocketConnection(client) {
   client.on("joinGame", onJoinGame)
   client.on("disconnect", onClientDisconnect);
   client.on("new player", onNewPlayer);
-  client.on("move player", onMovePlayer);
+  client.on("input", onInputPlayer);
 
   client.on('connectData', function(){
-    this.emit('connectData', {map: game.getMap(), world: game.getWorldData()})
+    this.emit('connectData', {map: JSON.stringify(game.getMap()), world: game.getWorldData()})
   })
 
   client.on("shoot", playerShoot)
   client.on("reload", playerReload)
 
-  client.on("look player", onLookPlayer)
+  // client.on("look player", onLookPlayer)
 
-  client.on("hit player", onHitPlayer);
+  // client.on("hit player", onHitPlayer);
 
   client.on("chatMessage", chatMessage)
 };
@@ -86,7 +123,7 @@ function playerReload(data){
       if(player.reloading == true){
         if(player.playerData.ammo < player.playerData.gun.maxAmmo){
           player.playerData.ammo += 1
-          s.emit("reload", {ammo: player.playerData.ammo})
+          // s.emit("reload", {ammo: player.playerData.ammo})
           setTimeout(reload, reloadSpeed, s)
         }
       }
@@ -150,7 +187,7 @@ function onNewPlayer(data) {
     angularFactor: new CANNON.Vec3(0, 1, 0)
   });
   body.linearDamping = 0.6;
-  body.position.set(0, 6, 0)
+  body.position.set(0, 60, 0)
 
   body.angularDamping = 0.5
   body.updateMassProperties();
@@ -162,15 +199,13 @@ function onNewPlayer(data) {
 
   var newPlayer = new Player(data.id, body, mesh, data.nickname);
   newPlayer.camRotation = rotation
-  console.log("Test Gun: "+JSON.stringify(gunManager.testGun)+" Ammo: "+gunManager.testGun.name)
-  newPlayer.setGun(gunManager.testGun)
-
 
   newPlayer.body.addShape(bodyShape);
-  game.addPhysicsBody(newPlayer.body)
+  game.addPhysicsBody(newPlayer.body);
   playerScene.add(mesh)
 
-  // newPlayer.setPosition(new CANNON.Vec3(0, 4, 0))
+  console.log("Test Gun: "+JSON.stringify(gunManager.testGun)+" Ammo: "+gunManager.testGun.name)
+  newPlayer.setGun(gunManager.testGun)
 
   //Tell all other players about the newbie
   this.broadcast.emit("new player", {id: newPlayer.id, nickname: newPlayer.nickname, x: newPlayer.body.position.x, y: newPlayer.body.y, z: newPlayer.body.z, mass: mass, playerData: newPlayer.playerData});
@@ -183,7 +218,7 @@ function onNewPlayer(data) {
   };
 
   players.push(newPlayer);
-  util.log("Added new player "+newPlayer.nickname+" ("+this.id+") Total players now: "+players.length)
+  util.log("Added new player "+newPlayer.nickname+" ("+this.id+" "+newPlayer.defaultSensitivity+" ) Total players now: "+players.length)
 };
 
 function onHitPlayer(data){
@@ -198,46 +233,47 @@ function onHitPlayer(data){
   this.broadcast.emit("hit player", {id: hitPlayer.id})
 }
 
-var defaultSensitivity = 0.016
-var scopingSensitivity = 0.003
 
-var PI_2 = Math.PI / 2;
 
-function onLookPlayer(data){
-  var lookPlayer = playerById(data.id)
+// function onLookPlayer(data){
+//   var lookPlayer = playerById(data.id)
+//
+//   if(!lookPlayer){
+//     console.log("cannot rotate player")
+//   }
+//
+//   //set body rotation
+//   // lookPlayer.body.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), )
+//   var moveX = data.movementX
+//   var moveY = data.movementY
+//
+//   moveX /= 2
+//   moveY /= 2
+//
+//   var changeX = data.movementY * defaultSensitivity
+//   var changeY = data.movementX * defaultSensitivity
+//
+//   lookPlayer.camRotation.x -= changeX
+//   lookPlayer.camRotation.y -= changeY
+//
+//   lookPlayer.camRotation.x = Math.max( - PI_2, Math.min( PI_2, lookPlayer.camRotation.x ) );
+//   // lookPlayer.body.angularVelocity.set(changeX, changeY, 0)
+//   // this.emit("look player", {rotationX: lookPlayer.camRotation.x, rotationY: lookPlayer.camRotation.y})
+// }
 
-  if(!lookPlayer){
-    console.log("cannot rotate player")
-  }
-
-  //set body rotation
-  // lookPlayer.body.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), )
-  var changeX = data.movementY * defaultSensitivity
-  var changeY = data.movementX * defaultSensitivity
-
-  lookPlayer.camRotation.x -= changeX
-  lookPlayer.camRotation.y -= changeY
-
-  lookPlayer.camRotation.x = Math.max( - PI_2, Math.min( PI_2, lookPlayer.camRotation.x ) );
-  // lookPlayer.body.angularVelocity.set(changeX, changeY, 0)
-  this.emit("look player", {rotationX: lookPlayer.camRotation.x, rotationY: lookPlayer.camRotation.y})
-}
-
-function onMovePlayer(data) {
+function onInputPlayer(data) {
   // console.log("move: "+data.id)
-  var movePlayer = playerById(data.id);
+  var inputPlayer = playerById(data.id);
 
-  if (!movePlayer) {
+  if (!inputPlayer) {
     console.log("(move) Player not found: "+data.id);
     return;
   };
 
-  movePlayer.move(data.inputs, delta)
-
-  sendUpdate()
+  inputPlayer.input(data.inputs, delta)
 };
 
-function sendUpdate(){
+function sendUpdate(delta){
   function getUpdateData(){
     var updateData = []
     for(var i = 0; i < players.length; i++){
@@ -246,11 +282,19 @@ function sendUpdate(){
       plData.position = players[i].body.position
       plData.quat = players[i].body.quaternion
       plData.playerData = players[i].playerData
+      plData.camRotation = players[i].camRotation
+      plData.shootData = players[i].shootData
       updateData.push(plData)
+
+      //Variables to reset once update is sent
+      players[i].shootData.hitPlayer = false
+      players[i].shootData.shotPlayer = []
+      players[i].shootData.shootBullet = false
+
     }
     return updateData;
   }
-  socket.sockets.emit('updatePlayers', {data: getUpdateData()})
+  socket.sockets.emit('updatePlayers', {delta: delta, data: getUpdateData()})
 }
 
 //TODO When moved hit test to server side, delete
@@ -272,30 +316,7 @@ function getRemotePlayerFromObject(obj){
 }
 
 function playerShoot(data){
-  var shootingPlayer = playerById(data.id)
 
-  if(shootingPlayer){
-    if(shootingPlayer.playerData.ammo > 0){
-      shootingPlayer.playerData.ammo -= 1
-
-      //TODO Set near and far for gun ranges
-      raycaster.set(shootingPlayer.body.position, data.camDir)
-      var objects = getRemotePlayerObjects()
-      var intersects = raycaster.intersectObjects(objects)
-
-      if(intersects.length > 0){
-        var shotPlayerMesh = intersects[0].object
-        var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
-
-        if(shotPlayer){
-          // console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
-          sendActualChatMessage({from: "server", msg: shootingPlayer.nickname+" hit "+shotPlayer.nickname+"!"})
-          shootingPlayer.playerData.score += 5
-          this.emit("hit player", {players: [shotPlayer.id]})
-        }
-      }
-    }
-  }
 }
 
 
@@ -316,18 +337,22 @@ function loop() {
 
   delta = Date.now() - time
   //use delta
+  sendUpdate(delta)
 
   time = Date.now()
 
   setTimeout(loop, 1000/60);
 }
 
-function Game(){
-  var map = []
+function Game(matrix, terrainHeight, terrainScale){
+  var map = matrix//[]
   var models = {}
   var cw = {} // Cannon World
   var dt = 1/60;
   var n = 8
+  var height = terrainHeight
+  var scale = terrainScale
+  // console.log("T:"+terrainHeight)
 
   this.gameInit = function() {
     cw.world = new CANNON.World();
@@ -364,10 +389,11 @@ function Game(){
     this.createStage()
   };
 
-  var worldSize = 20
+  var worldSize = (map[0].length/2)*scale
+  console.log("World size: "+worldSize)
   var boundaryWhitespace = 10
   var boundaryThickness = 1
-  var boundaryHeight = 20
+  var boundaryHeight = 40
 
   var tileWidth;
   var tileHeight;
@@ -375,7 +401,7 @@ function Game(){
   var slopeData;
 
   this.createStage = function(){
-    this.createMap(n)
+    // this.createMap(n)
 
     var boundarySize = new CANNON.Vec3(worldSize*2+(boundaryWhitespace*2), boundaryHeight, boundaryThickness)
 
@@ -418,23 +444,75 @@ function Game(){
 
     // this.loadModels()
 
-    slopeData = this.createSlope(tileWidth, tileHeight)
+    // slopeData = this.createSlope(tileWidth, tileHeight)
+    //
+    // for(var l = 0; l < map.length; l++){
+    //   for(var x = 0; x < n; x++){
+    //     for(var y = 0; y < n; y++){
+    //       //Create physics bodies
+    //       // if(map[i] > 0){
+    //       //   this.createHouse(map[i]-1, i)
+    //       // }
+    //       if(map[l][x][y] > 0){
+    //         this.createTile(x,y,l)
+    //       }
+    //     }
+    //   }
+    // }
 
-    for(var l = 0; l < map.length; l++){
-      for(var x = 0; x < n; x++){
-        for(var y = 0; y < n; y++){
-          //Create physics bodies
-          // if(map[i] > 0){
-          //   this.createHouse(map[i]-1, i)
-          // }
-          if(map[l][x][y] > 0){
-            this.createTile(x,y,l)
-          }
+    var sizeX = map[0].length;
+    var sizeY = map[1].length;
+    // Create the heightfield
+    var hfShape = new CANNON.Heightfield(map, {
+        elementSize: scale
+    });
+    var hfBody = new CANNON.Body({ mass: 0 });
+    hfBody.addShape(hfShape);
+    hfBody.position.set((-sizeX * hfShape.elementSize) / 2, 0, (sizeY * hfShape.elementSize) / 2);
+    hfBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), (-Math.PI/2))
+    this.addPhysicsBody(hfBody);
+
+
+
+    var geometry = new THREE.Geometry();
+
+    var v0 = new CANNON.Vec3();
+    var v1 = new CANNON.Vec3();
+    var v2 = new CANNON.Vec3();
+
+    for (var xi = 0; xi < hfShape.data.length - 1; xi++) {
+      for (var yi = 0; yi < hfShape.data[xi].length - 1; yi++) {
+        for (var k = 0; k < 2; k++) {
+          hfShape.getConvexTrianglePillar(xi, yi, k===0);
+          v0.copy(hfShape.pillarConvex.vertices[0]);
+          v1.copy(hfShape.pillarConvex.vertices[1]);
+          v2.copy(hfShape.pillarConvex.vertices[2]);
+          v0.vadd(hfShape.pillarOffset, v0);
+          v1.vadd(hfShape.pillarOffset, v1);
+          v2.vadd(hfShape.pillarOffset, v2);
+          geometry.vertices.push(
+            new THREE.Vector3(v0.x, v0.y, v0.z),
+            new THREE.Vector3(v1.x, v1.y, v1.z),
+            new THREE.Vector3(v2.x, v2.y, v2.z)
+          );
+          var i = geometry.vertices.length - 3;
+          var face = new THREE.Face3(i, i+1, i+2)
+          geometry.faces.push(face);
         }
       }
     }
 
-    console.log("created map ("+n+")")
+    geometry.computeBoundingSphere();
+    geometry.computeFaceNormals();
+    var material = new THREE.MeshBasicMaterial();
+    mesh = new THREE.Mesh(geometry, material);
+    mesh.quaternion.copy(hfBody.quaternion)
+    mesh.position.copy(hfBody.position)
+    playerScene.add(mesh)
+
+
+
+    console.log("created map ("+map[0].length+" x "+map[1].length+")")
   }
 
   // this.loadModels = function(){
@@ -486,7 +564,7 @@ this.getMap = function(){
 }
 
 this.getWorldData = function(){
-  return {worldSize: worldSize, n: n, tileWidth, tileWidth, tileHeight: tileHeight, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight, boundaryWhitespace: boundaryWhitespace}
+  return {worldSize: worldSize, n: n, terrainHeight: height, terrainScale: scale, tileWidth: tileWidth, tileHeight: tileHeight, boundaryThickness: boundaryThickness, boundaryHeight: boundaryHeight, boundaryWhitespace: boundaryWhitespace}
 }
 
 this.getN = function(){
@@ -606,11 +684,24 @@ this.createSlope = function(width, height){
 function Player(id, body, mesh, nickname) {
   var that = this
 
+  this.defaultSensitivity = 0.008
+  this.scopingSensitivity = 0.003
+
+  this.PI_2 = Math.PI / 2;
+
   this.playerData = {
     health: 100,
     gun: {},
     score: 0,
     ammo: 0
+  }
+
+  this.playerData.lastShot = 0
+
+  this.shootData = {
+    hitPlayer: false,
+    shotPlayer: [],
+    shootBullet: false
   }
 
   this.velocityFactor = 5
@@ -661,7 +752,25 @@ Player.prototype.setGun = function(gun){
   this.playerData.ammo = gun.maxAmmo
 }
 
-Player.prototype.move = function(inputs, dt){
+Player.prototype.hitByPlayer = function(hitBy, subtractHealth){
+  this.playerData.health -= subtractHealth
+
+  if(this.playerData.health <= 0){
+    sendActualChatMessage({from: "server", msg: hitBy.nickname+" KILLED "+this.nickname})
+    this.kill()
+  }
+}
+
+Player.prototype.kill = function(){
+  game.removePhysicsBody(this.body)
+  playerScene.remove(this.mesh)
+
+  players.splice(players.indexOf(this), 1);
+
+  socket.sockets.connected[this.id].disconnect()//emit("remove player", {id: this.id});
+}
+
+Player.prototype.input = function(inputs, dt){
   dt *= 0.1;
 
   this.inputVelocity.set(0, 0, 0)
@@ -693,6 +802,20 @@ Player.prototype.move = function(inputs, dt){
     this.canJump = false
   }
 
+  //set body rotation
+  // lookPlayer.body.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), )
+  var moveX = inputs.movementX
+  var moveY = inputs.movementY
+  var changeX = inputs.movementY * this.defaultSensitivity
+  var changeY = inputs.movementX * this.defaultSensitivity
+
+  // console.log("M "+moveX+" "+moveY+" C "+changeX+" "+changeY+" S "+this.defaultSensitivity)
+
+  this.camRotation.x -= changeX
+  this.camRotation.y -= changeY
+
+  this.camRotation.x = Math.max( - this.PI_2, Math.min( this.PI_2, this.camRotation.x ) );
+
   this.euler.x = this.camRotation.x;
   this.euler.y = this.camRotation.y;
   this.euler.order = "XYZ";
@@ -701,6 +824,45 @@ Player.prototype.move = function(inputs, dt){
 
   this.velocity.x += this.inputVelocity.x
   this.velocity.z += this.inputVelocity.z
+
+
+
+  if(inputs.shoot){
+    var lastShotDelta = Date.now()-this.playerData.lastShot
+
+    if(lastShotDelta > this.playerData.gun.shootSpeed){
+      if(this.playerData.ammo > 0){
+        this.playerData.ammo -= 1
+
+        this.shootData.shootBullet = true
+
+        //TODO Set near and far for gun ranges
+        raycaster.set(this.body.position, inputs.camDir)
+        var objects = getRemotePlayerObjects()
+        var intersects = raycaster.intersectObjects(objects)
+
+        if(intersects.length > 0){
+          var shotPlayerMesh = intersects[0].object
+          var shotPlayer = getRemotePlayerFromObject(shotPlayerMesh)
+
+          if(shotPlayer){
+            // console.log(shootingPlayer.nickname+" hit "+shotPlayer.nickname)
+            sendActualChatMessage({from: "server", msg: shootingPlayer.nickname+" hit "+shotPlayer.nickname+"!"})
+            this.playerData.score += 5
+
+            this.shootData.hitPlayer = true
+            this.shootData.shotPlayer = [shotPlayer.id]
+
+            shotPlayer.hitByPlayer(shootingPlayer, shootingPlayer.playerData.gun.basicDamage)
+          }
+        }
+      }
+      this.playerData.lastShot = Date.now()
+    }
+  }
+
+
+
 
   // mesh.position.copy(body.position)
 }
@@ -719,7 +881,7 @@ function Gun(id, name, maxAmmo, basicDamage, specialDamage, shootSpeed, scopeTyp
 
 
 function GunManager(){
-  this.testGun = Gun(0, "Tomcat", 12, 5, {head: 1}, 1, 0, 500);
+  this.testGun = Gun(0, "Gun", 12, 5, {head: 1}, 100, 0, 500);
 }
 
 init();

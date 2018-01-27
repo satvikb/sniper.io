@@ -40,14 +40,14 @@ function loadedStage(){
   document.body.removeChild(document.getElementById("progress"))
 }
 
-texLoader.load("http://sniper.satvik.co/assets/textures/test.jpg", function (texture){
+texLoader.load("http://localhost:8000/assets/textures/test.jpg", function (texture){
   texture.magFilter = THREE.NearestFilter;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   cubeMaterial = new THREE.MeshLambertMaterial( { map: texture } );
 })
 
 
-texLoader.load('http://sniper.satvik.co/assets/textures/floor.jpg', function ( texture ) {
+texLoader.load('http://localhost:8000/assets/textures/floor.jpg', function ( texture ) {
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
   texture.magFilter = THREE.NearestFilter;
@@ -56,11 +56,11 @@ texLoader.load('http://sniper.satvik.co/assets/textures/floor.jpg', function ( t
   floorMaterial = new THREE.MeshLambertMaterial( { map: texture } );
 })
 
-ShaderLoader("http://sniper.satvik.co/shaders/vertex.js", "http://sniper.satvik.co/shaders/fragment.js", function(vertex, fragment){
+ShaderLoader("http://localhost:8000/shaders/vertex.js", "http://localhost:8000/shaders/fragment.js", function(vertex, fragment){
   shaderMaterial = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment });
 })
 
-ShaderLoader("http://sniper.satvik.co/shaders/bulletVertex.js", "http://sniper.satvik.co/shaders/bulletFragment.js", function(vertex, fragment){
+ShaderLoader("http://localhost:8000/shaders/bulletVertex.js", "http://localhost:8000/shaders/bulletFragment.js", function(vertex, fragment){
   bulletMaterial = new THREE.ShaderMaterial({
     uniforms: {
       "c": {type: "f", value: 0.1},
@@ -85,7 +85,7 @@ function ShaderLoader(vertex_url, fragment_url, onLoad, onProgress, onError) {
     }, onProgress, onError);
 }
 
-objLoader.load("http://sniper.satvik.co/assets/models/gun.obj", function(obj){
+objLoader.load("http://localhost:8000/assets/models/gun.obj", function(obj){
   gunTest = obj
 })
 

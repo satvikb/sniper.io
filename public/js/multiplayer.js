@@ -19,7 +19,7 @@ function setSocketEventHandlers(){
 
   socket.on("reload", playerReload)
 
-  socket.on("look player", onLookPlayer)
+  // socket.on("look player", onLookPlayer)
 
   socket.on("chatMessage", chatMessage)
 }
@@ -39,7 +39,7 @@ function setSocketEventHandlers(){
 // }
 
 function onConnectData(data){
-  console.log("Latency: "+(Date.now()-latency)+"ms")
+  console.log("Got data: "+(Date.now()-latency)+"ms")
   worldSize = data.world.worldSize
   n = data.world.n
   tileWidth = data.world.tileWidth
@@ -48,7 +48,10 @@ function onConnectData(data){
   boundaryThickness = data.world.boundaryThickness
   boundaryWhitespace = data.world.boundaryWhitespace
 
-  map = data.map
+  terrainHeight = data.world.terrainHeight
+  terrainScale = data.world.terrainScale
+  map = JSON.parse(data.map)
+  // console.log("map: "+map[0][0])
 
   initMap()
 }
@@ -68,7 +71,7 @@ function onNewPlayer(data) {
     body.updateMassProperties();
 
     // var shape = new THREE.BoxGeometry(bodyShape.radius, 32, 32);
-    var mesh = new THREE.Mesh( ballGeometry, shaderMaterial)//new THREE.MeshLambertMaterial({color: 0xffffff}) );
+    var mesh = new THREE.MeshLambertMaterial({color: 0xffffff});//new THREE.Mesh( ballGeometry, shaderMaterial)//
 
     var nameTag = makeTextLabelSprite(data.nickname);
   	nameTag.position.set(data.x, data.y+radius*1.25, data.z);
@@ -88,10 +91,10 @@ function onNewPlayer(data) {
   }
 };
 
-function onLookPlayer(data){
-  // var rot = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w))
-  controls.updateRotation(data)
-}
+// function onLookPlayer(data){
+//   // var rot = new THREE.Euler().setFromQuaternion(new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w))
+//   controls.updateRotation(data)
+// }
 
 function makeTextLabelSprite( message, parameters ) {
   var canvas = document.createElement('canvas')
@@ -130,6 +133,7 @@ function onUpdatePlayers(data){
       }
 
       var playerStats = playerData[p].playerData
+      var shootData = playerData[p].shootData
 
       var position = playerData[p].position
       var quat = playerData[p].quat
@@ -138,6 +142,12 @@ function onUpdatePlayers(data){
         localPlayer.playerData = playerStats
         localPlayer.setPos(position)
         localPlayer.setQuat(quat)
+        controls.updateRotation(playerData[p].camRotation)
+
+        if(shootData.shootBullet){
+          addBullet()
+        }
+
         updateStats({score: playerStats.score, ammo: playerStats.ammo, gunName: playerStats.gun.name, maxAmmo: playerStats.gun.maxAmmo})
       }else{
         player.playerData = playerStats

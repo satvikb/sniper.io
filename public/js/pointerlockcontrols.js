@@ -29,6 +29,13 @@
     var moveRight = false;
     var jumpBtn = false;
 
+    var shoot = false
+    var moveX = 0
+    var moveY = 0
+
+    //TODO Can this be exploited for cheating?
+    var camDir = 0
+
     var scoping = false;
     var canJump = false;
 
@@ -37,7 +44,7 @@
 
     var oldPos = new THREE.Vector3()//yawObject.position
 
-    var defaultSensitivity = 0.006
+    var defaultSensitivity = 0.008
     var scopingSensitivity = 0.003
 
     var currentSensitivity = defaultSensitivity
@@ -61,6 +68,24 @@
 
     var PI_2 = Math.PI / 2;
 
+    var testMoveX = 0
+    var testMoveY = 0
+
+    this.getMove = function(){
+      return [testMoveX, testMoveY]
+    }
+
+    this.resetMove = function(){
+      testMoveX = 0
+      testMoveY = 0
+    }
+
+    var mouseStop = function(){
+      moveX = moveY = 0
+    }
+
+    var timer;
+
     var onMouseMove = function ( event ) {
       // console.log("mouse move "+event.movementX+" "+event.movementY+" "+scope.enabled)
         if ( scope.enabled === false ) return;
@@ -68,18 +93,30 @@
         var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
         var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
 
-        socket.emit("look player", {id: socket.id, movementX: movementX, movementY: movementY})
+        movementX /= 2
+        movementY /= 2
+
+        moveX = testMoveX = movementX
+        moveY = testMoveY = movementY
+
+        // socket.emit("look player", {id: socket.id, movementX: movementX, movementY: movementY})
 
         //client interploration
         yawObject.rotation.y -= movementX * currentSensitivity;
         pitchObject.rotation.x -= movementY * currentSensitivity;
 
         pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+
+        // clearTimeout(timer)
+        // timer = setTimeout(mouseStop, 0)
     };
 
     this.updateRotation = function(data){
-      yawObject.rotation.y = data.rotationY
-      pitchObject.rotation.x = data.rotationX
+      //   // this.emit("look player", {rotationX: lookPlayer.camRotation.x, rotationY: lookPlayer.camRotation.y})
+
+      yawObject.rotation.y = data.y
+      pitchObject.rotation.x = data.x
+      // console.log("R1 "+data.x+" "+data.y+" R2 "+yawObject.rotation.y+" "+pitchObject.rotation.x)
     }
 
     var onKeyDown = function ( event ) {
@@ -124,6 +161,7 @@
         }
 
         //scope
+        //TODO Mind if mouse button is used instead
         if(controls.enabled){
           if(event.keyCode == keys.scope){
             setScoping(true)
@@ -157,6 +195,7 @@
         }
 
         //scope
+        //TODO Mind if mouse button is used instead
         if(controls.enabled){
           if(event.keyCode == keys.scope){
             setScoping(false)
@@ -174,11 +213,51 @@
       camera.updateProjectionMatrix()
     }
 
+    //scoping with RMB
+
+    var mouseDown = function(e){
+      if(!e.shiftKey){
+        if(e.button == 2){
+          setScoping(true)
+        }
+      }
+
+      //shooting
+      if(inGame){
+        if(scope.enabled == true){
+          if(e.button == 0){
+            if(localPlayer.playerData.ammo > 0){
+              camDir = camera.getWorldDirection();
+              shoot = true
+              // socket.emit("shoot", {id: socket.id, camDir: d})
+            }
+          }
+        }
+      }
+    }
+
+    var mouseUp = function(e){
+      if(!e.shiftKey){
+        if(e.button == 2){
+          setScoping(false)
+        }
+      }
+
+      if(e.button == 0)
+        shoot = false
+    }
+
     document.addEventListener( 'mousemove', onMouseMove, false );
     document.addEventListener( 'keydown', onKeyDown, false );
     document.addEventListener( 'keyup', onKeyUp, false );
 
-    this.enabled = false;
+    document.addEventListener("mousedown", mouseDown, false);
+    document.addEventListener("mouseup", mouseUp, false);
+
+
+
+
+
 
     this.getObject = function () {
         return yawObject;
@@ -208,6 +287,9 @@
           moveLeft = false
           moveRight = false
           jumpBtn = false
+          shoot = 0
+          moveX = 0
+          moveY = 0
           return;
         }else{
 
@@ -256,10 +338,17 @@
         right: moveRight,
         backward: moveBackward,
         forward: moveForward,
-        jump: jumpBtn//,
+        jump: jumpBtn,
+        movementX: moveX,
+        movementY: moveY,
+        shoot: shoot,
+        camDir: camDir//,
         // rotX: pitchObject.rotation.x,
         // rotY: yawObject.rotation.y
       }
+
+      moveX = moveY = 0
+      shoot = false
 
       return inputs;
     }
